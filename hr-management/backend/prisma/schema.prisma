@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(uuid())
+  email            String         @unique
+  name             String
+  phone            String?
+  discordId        String?        @map("discord_id")
+  avatarUrl        String?        @map("avatar_url")
+  timezone         String         @default("Asia/Kolkata")
+  status           UserStatus     @default(PENDING)
+  emailVerified    Boolean        @default(false) @map("email_verified")
+  password         String?
+  department       String?
+  designation      String?
+  joiningDate      DateTime?      @map("joining_date")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  roleId           String?        @map("role_id")
+  resetToken       String?        @map("reset_token")
+  resetTokenExpiry DateTime?      @map("reset_token_expiry")
+  leaveBalance     LeaveBalance?
+  leaveRequests    LeaveRequest[]
+  notifications    Notification[]
+  timeEntries      TimeEntry[]
+  tags             UserTag[]
+  role             Role?          @relation(fields: [roleId], references: [id])
+
+  @@map("users")
+}
+
+model Role {
+  id          String @id @default(uuid())
+  name        String @unique
+  permissions Json
+  users       User[]
+
+  @@map("roles")
+}
+
+model UserTag {
+  id      String  @id @default(uuid())
+  userId  String  @map("user_id")
+  tagType TagType @map("tag_type")
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("user_tags")
+}
+
+model TimeEntry {
+  id                  String          @id @default(uuid())
+  userId              String          @map("user_id")
+  clockIn             DateTime        @map("clock_in")
+  clockOut            DateTime?       @map("clock_out")
+  clockType           ClockType       @map("clock_type")
+  location            Json?
+  hoursWorked         Decimal?        @map("hours_worked") @db.Decimal(5, 2)
+  status              TimeEntryStatus @default(ACTIVE)
+  isOnCall            Boolean         @default(false) @map("is_on_call")
+  overtimeConfirmedAt DateTime?       @map("overtime_confirmed_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("time_entries")
+}
+
+model LeaveRequest {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  type            LeaveType
+  startDate       DateTime    @map("start_date")
+  endDate         DateTime    @map("end_date")
+  reason          String?
+  status          LeaveStatus @default(PENDING)
+  approvedBy      String?     @map("approved_by")
+  rejectionReason String?     @map("rejection_reason")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  user            User        @relation(fields: [userId], references: [id])
+
+  @@map("leave_requests")
+}
+
+model LeaveBalance {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  sick   Int    @default(10)
+  casual Int    @default(10)
+  earned Int    @default(15)
+  year   Int    @default(2025)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, year])
+  @@map("leave_balances")
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  name      String
+  date      DateTime @unique
+  year      Int
+  isFloater Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("holidays")
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String           @map("user_id")
+  title      String
+  message    String
+  type       NotificationType
+  isRead     Boolean          @default(false) @map("is_read")
+  actionData Json?            @map("action_data")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  user       User             @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum ClockType {
+  IN_OFFICE
+  REMOTE
+}
+
+enum TimeEntryStatus {
+  ACTIVE
+  COMPLETED
+  RESET
+  OVERTIME_CONFIRMED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ALERT
+  SUCCESS
+}
+
+enum TagType {
+  REMOTE
+  HYBRID
+  INTERN
+  ON_CALL
+}
+
+enum LeaveType {
+  CASUAL
+  MEDICAL
+  OTHER
+  EARNED
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}

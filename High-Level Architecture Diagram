@@ -1,0 +1,100 @@
+┌──────────────────────────────┐
+│        Users (Browser)       │
+│  Admin / Dev / Intern / User │
+│  Web / Mobile Interface      │
+└───────────────┬──────────────┘
+                │ HTTPS (JWT/Auth)
+                ▼
+┌──────────────────────────────┐
+│        Frontend Layer        │
+│   (React / Next.js / Vue)    │
+│                              │
+│ • Login / Dashboards         │
+│ • Attendance UI              │
+│ • Holiday Requests           │
+│ • Analytics Charts           │
+│ • Notifications UI           │
+│ • Role-Based Views           │
+└───────────────┬──────────────┘
+                │ REST / GraphQL API
+                ▼
+┌────────────────────────────────────────────┐
+│              API Gateway / Backend         │
+│         (Node.js / Django / Spring)        │
+│                                            │
+│ ┌──────────────────────────────────────┐  │
+│ │ Authentication Service               │  │
+│ │ • Login / JWT / RBAC                  │  │
+│ └──────────────────────────────────────┘  │
+│                                            │
+│ ┌──────────────────────────────────────┐  │
+│ │ User Management Service              │  │
+│ │ • Profiles / Roles / Tags            │  │
+│ └──────────────────────────────────────┘  │
+│                                            │
+│ ┌──────────────────────────────────────┐  │
+│ │ Attendance Service                   │  │
+│ │ • Clock In / Out                     │  │
+│ │ • Location Tracking                 │  │
+│ │ • Work Hour Calculation             │  │
+│ └──────────────────────────────────────┘  │
+│                                            │
+│ ┌──────────────────────────────────────┐  │
+│ │ Holiday & Leave Service              │  │
+│ │ • Requests / Approval Flow           │  │
+│ │ • Holiday Calendar                   │  │
+│ └──────────────────────────────────────┘  │
+│                                            │
+│ ┌──────────────────────────────────────┐  │
+│ │ Reporting & Analytics Service        │  │
+│ │ • Excel Export                       │  │
+│ │ • Charts / Summaries                 │  │
+│ └──────────────────────────────────────┘  │
+│                                            │
+│ ┌──────────────────────────────────────┐  │
+│ │ Notification Service                 │  │
+│ │ • 7 PM Reminder                      │  │
+│ │ • 12-Hour Alert                      │  │
+│ │ • Email / In-App                     │  │
+│ └──────────────────────────────────────┘  │
+└───────────────┬────────────────────────────┘
+                │ ORM / SQL / Queries
+                ▼
+┌──────────────────────────────┐
+│         Database Layer       │
+│ (PostgreSQL / MySQL / Mongo) │
+│                              │
+│ • Users                      │
+│ • Roles                      │
+│ • Attendance Logs            │
+│ • Locations                  │
+│ • Holiday Requests           │
+│ • Reports                    │
+│ • Audit Logs                 │
+│ • Notifications              │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│     Backup & Data Storage    │
+│   (Cloud Storage / S3)       │
+│   • DB Backups               │
+│   • Exported Reports         │
+└──────────────────────────────┘
+
+
+                ┌──────────────────────────────┐
+                │    Background Jobs / Cron     │
+                │  (BullMQ / Celery / Quartz)   │
+                │                               │
+                │ • 7 PM Reminder               │
+                │ • 12 Hour Validation          │
+                │ • Auto Reset                  │
+                │ • Report Generation           │
+                └───────────────┬──────────────┘
+                                │
+                                ▼
+                    ┌─────────────────────┐
+                    │  Notification APIs  │
+                    │  Email / Push / SMS │
+                    └─────────────────────┘

@@ -1,0 +1,81 @@
+import prisma from '../config/db';
+import bcrypt from 'bcryptjs';
+
+async function main() {
+    const password = 'password123';
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // --------------------------------------------------------
+    // 1. SETUP ROLES
+    // --------------------------------------------------------
+
+    // Admin Role
+    let adminRole = await prisma.role.findUnique({ where: { name: 'ADMIN' } });
+    if (!adminRole) {
+        console.log('Creating ADMIN role...');
+        adminRole = await prisma.role.create({
+            data: { name: 'ADMIN', permissions: { all: true } }
+        });
+    }
+
+    // Employee Role
+    let employeeRole = await prisma.role.findUnique({ where: { name: 'EMPLOYEE' } });
+    if (!employeeRole) {
+        console.log('Creating EMPLOYEE role...');
+        employeeRole = await prisma.role.create({
+            data: { name: 'EMPLOYEE', permissions: { view_self: true, apply_leave: true } }
+        });
+    }
+
+    // --------------------------------------------------------
+    // 2. CREATE USERS
+    // --------------------------------------------------------
+
+    // --- ADMIN USER ---
+    const adminEmail = 'admin@rudratic.com';
+    const adminPass = 'admin123';
+    const hashedAdminPass = await bcrypt.hash(adminPass, 10);
+
+    await prisma.user.upsert({
+        where: { email: adminEmail },
+        update: {
+            password: hashedAdminPass,
+            status: 'ACTIVE',
+            role: { connect: { id: adminRole.id } }
+        },
+        create: {
+            email: adminEmail,
+            name: 'System Admin',
+            password: hashedAdminPass,
+            status: 'ACTIVE',
+            role: { connect: { id: adminRole.id } }
+        }
+    });
+    console.log(`✅ Admin Created: ${adminEmail} / ${adminPass}`);
+
+    // --- EMPLOYEE USER ---
+    const userEmail = 'employee@rudratic.com';
+    const userPass = 'user123';
+    const hashedUserPass = await bcrypt.hash(userPass, 10);
+
+    await prisma.user.upsert({
+        where: { email: userEmail },
+        update: {
+            password: hashedUserPass,
+            status: 'ACTIVE',
+            role: { connect: { id: employeeRole.id } }
+        },
+        create: {
+            email: userEmail,
+            name: 'John Employee',
+            password: hashedUserPass,
+            status: 'ACTIVE',
+            role: { connect: { id: employeeRole.id } }
+        }
+    });
+    console.log(`✅ Employee Created: ${userEmail} / ${userPass}`);
+}
+
+main()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
