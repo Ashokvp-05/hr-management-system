@@ -38,7 +38,6 @@ const userController = __importStar(require("../controllers/user.controller"));
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate);
-router.use((0, auth_middleware_1.requireRole)(['ADMIN'])); // All user management requires Admin
-router.get('/', userController.getUsers);
-router.put('/:id', userController.updateUser);
+router.get('/', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), userController.getUsers);
+router.put('/:id', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), userController.updateUser);
 exports.default = router;

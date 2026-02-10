@@ -3,6 +3,7 @@ import * as leaveService from '../services/leave.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { LeaveType, LeaveStatus } from '@prisma/client';
 import { z } from 'zod';
+import prisma from '../config/db';
 
 const createRequestSchema = z.object({
     type: z.any(), // Temporary fix for stale enum cache
@@ -13,6 +14,7 @@ const createRequestSchema = z.object({
 
 export const createRequest = async (req: Request, res: Response) => {
     try {
+        console.log("Incoming Leave Request:", req.body);
         const userId = (req as AuthRequest).user?.id;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -62,7 +64,22 @@ export const getBalance = async (req: Request, res: Response) => {
 
 export const getAllRequests = async (req: Request, res: Response) => {
     try {
-        const requests = await leaveService.getAllRequests();
+        const loggedInUser = (req as AuthRequest).user;
+        let targetDepartment: string | undefined = undefined;
+
+        if (loggedInUser?.roleId) {
+            const user = await prisma.user.findUnique({
+                where: { id: loggedInUser.id },
+                include: { role: true }
+            });
+            if (user?.role?.name === 'MANAGER') {
+                targetDepartment = user.department || undefined;
+                // If manager has no dept, they see nothing or all? Usually nothing or just themselves.
+                // Let's assume strict department filtering.
+            }
+        }
+
+        const requests = await leaveService.getAllRequests(targetDepartment);
         res.json(requests);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

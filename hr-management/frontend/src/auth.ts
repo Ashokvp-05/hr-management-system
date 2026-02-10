@@ -3,6 +3,9 @@ import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import type { NextAuthConfig } from "next-auth"
 
+const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/auth-test", "/logout", "/clear-session", "/rbac-test"]
+const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"]
+
 export const config = {
     providers: [
         Google({
@@ -48,11 +51,14 @@ export const config = {
         signIn: '/login',
     },
     callbacks: {
+        authorized({ auth }) {
+            return !!auth?.user
+        },
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id
-                token.role = (user as any).role || 'EMPLOYEE' // Default to EMPLOYEE if none provided
-                token.accessToken = (user as any).accessToken || 'mock-jwt-token'
+                token.role = (user as any).role || 'EMPLOYEE'
+                token.accessToken = (user as any).accessToken
             }
             return token
         },

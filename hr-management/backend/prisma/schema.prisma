@@ -8,32 +8,65 @@ datasource db {
 }
 
 model User {
-  id               String         @id @default(uuid())
-  email            String         @unique
+  id               String          @id @default(uuid())
+  email            String          @unique
   name             String
   phone            String?
-  discordId        String?        @map("discord_id")
-  avatarUrl        String?        @map("avatar_url")
-  timezone         String         @default("Asia/Kolkata")
-  status           UserStatus     @default(PENDING)
-  emailVerified    Boolean        @default(false) @map("email_verified")
+  discordId        String?         @map("discord_id")
+  avatarUrl        String?         @map("avatar_url")
+  timezone         String          @default("Asia/Kolkata")
+  status           UserStatus      @default(PENDING)
+  emailVerified    Boolean         @default(false) @map("email_verified")
   password         String?
   department       String?
   designation      String?
-  joiningDate      DateTime?      @map("joining_date")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
-  roleId           String?        @map("role_id")
-  resetToken       String?        @map("reset_token")
-  resetTokenExpiry DateTime?      @map("reset_token_expiry")
+  joiningDate      DateTime?       @map("joining_date")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  roleId           String?         @map("role_id")
+  resetToken       String?         @map("reset_token")
+  resetTokenExpiry DateTime?       @map("reset_token_expiry")
+  givenKudos       Kudos[]         @relation("GivenKudos")
+  receivedKudos    Kudos[]         @relation("ReceivedKudos")
   leaveBalance     LeaveBalance?
   leaveRequests    LeaveRequest[]
   notifications    Notification[]
+  ticketComments   TicketComment[]
+  assignedTickets  Ticket[]        @relation("AssignedTickets")
+  tickets          Ticket[]        @relation("CreatedTickets")
   timeEntries      TimeEntry[]
   tags             UserTag[]
-  role             Role?          @relation(fields: [roleId], references: [id])
+  role             Role?           @relation(fields: [roleId], references: [id])
+  wellnessChecks   WellnessCheck[]
 
+  @@index([email])
+  @@index([status])
   @@map("users")
+}
+
+model Kudos {
+  id         String   @id @default(uuid())
+  fromUserId String   @map("from_user_id")
+  toUserId   String   @map("to_user_id")
+  message    String
+  category   String
+  createdAt  DateTime @default(now()) @map("created_at")
+  fromUser   User     @relation("GivenKudos", fields: [fromUserId], references: [id])
+  toUser     User     @relation("ReceivedKudos", fields: [toUserId], references: [id])
+
+  @@map("kudos")
+}
+
+model WellnessCheck {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  date      DateTime @default(now())
+  mood      String
+  score     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("wellness_checks")
 }
 
 model Role {
@@ -68,6 +101,8 @@ model TimeEntry {
   createdAt           DateTime        @default(now()) @map("created_at")
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, status])
+  @@index([clockIn])
   @@map("time_entries")
 }
 
@@ -85,6 +120,8 @@ model LeaveRequest {
   updatedAt       DateTime    @updatedAt @map("updated_at")
   user            User        @relation(fields: [userId], references: [id])
 
+  @@index([userId, status])
+  @@index([createdAt])
   @@map("leave_requests")
 }
 
@@ -123,7 +160,22 @@ model Notification {
   createdAt  DateTime         @default(now()) @map("created_at")
   user       User             @relation(fields: [userId], references: [id])
 
+  @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model Announcement {
+  id        String    @id @default(uuid())
+  title     String
+  content   String
+  type      String    @default("INFO")
+  priority  String    @default("NORMAL")
+  createdBy String    @map("created_by")
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  eventDate DateTime? @map("event_date")
+
+  @@map("announcements")
 }
 
 model SystemConfig {
@@ -133,6 +185,55 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  details   String?
+  adminId   String   @map("admin_id")
+  targetId  String?  @map("target_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Ticket {
+  id           String          @id @default(uuid())
+  userId       String          @map("user_id")
+  assignedToId String?         @map("assigned_to_id")
+  title        String
+  description  String
+  priority     TicketPriority  @default(MEDIUM)
+  ticketNumber Int             @default(autoincrement()) @map("ticket_number")
+  token        String?         @unique
+  category     TicketCategory  @default(BUG)
+  status       TicketStatus    @default(OPEN)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  attachments  Json?
+  module       String?
+  comments     TicketComment[]
+  assignedTo   User?           @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  user         User            @relation("CreatedTickets", fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([userId])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_comments")
 }
 
 enum UserStatus {
@@ -169,11 +270,12 @@ enum TagType {
 }
 
 enum LeaveType {
+  SICK
   CASUAL
-  MEDICAL
-  OTHER
   EARNED
   UNPAID
+  MEDICAL
+  OTHER
 }
 
 enum LeaveStatus {
@@ -181,4 +283,25 @@ enum LeaveStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketCategory {
+  BUG
+  FEATURE
+  ACCOUNT
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }

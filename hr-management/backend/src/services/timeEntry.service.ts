@@ -102,10 +102,11 @@ export const getSummary = async (userId: string) => {
     };
 };
 
-export const getReport = async (startDate: Date, endDate: Date, userId?: string) => {
+export const getReport = async (startDate: Date, endDate: Date, userId?: string, departmentId?: string) => {
     return prisma.timeEntry.findMany({
         where: {
             userId: userId ? userId : undefined,
+            user: departmentId ? { department: departmentId } : undefined,
             clockIn: {
                 gte: startDate,
                 lte: endDate

@@ -17,7 +17,7 @@ app.use((0, morgan_1.default)('dev'));
 app.use(express_1.default.json());
 // Health Check
 app.get('/', (req, res) => {
-    res.json({ message: 'HR System API is running', timestamp: new Date() });
+    res.json({ message: 'Rudratic HR System API is running', timestamp: new Date() });
 });
 // Routes
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
@@ -27,6 +27,8 @@ const timeEntry_routes_1 = __importDefault(require("./routes/timeEntry.routes"))
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 const holiday_routes_1 = __importDefault(require("./routes/holiday.routes"));
 const leave_routes_1 = __importDefault(require("./routes/leave.routes"));
+const profile_routes_1 = __importDefault(require("./routes/profile.routes"));
+const report_routes_1 = __importDefault(require("./routes/report.routes"));
 const cron_service_1 = require("./services/cron.service");
 // Initialize Scheduled Tasks
 (0, cron_service_1.initCronJobs)();
@@ -35,6 +37,8 @@ app.use('/api/admin', admin_routes_1.default);
 app.use('/api/holidays', holiday_routes_1.default);
 app.use('/api/leaves', leave_routes_1.default);
 app.use('/api/users', user_routes_1.default);
+app.use('/api/profile', profile_routes_1.default);
 app.use('/api/notifications', notification_routes_1.default);
 app.use('/api/time', timeEntry_routes_1.default);
+app.use('/api/reports', report_routes_1.default);
 exports.default = app;

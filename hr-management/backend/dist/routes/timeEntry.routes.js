@@ -39,6 +39,7 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate);
 router.get('/active', timeEntryController.getActive);
+router.get('/active-users', timeEntryController.getAllActiveUsers);
 router.post('/clock-in', timeEntryController.clockIn);
 router.post('/clock-out', timeEntryController.clockOut);
 router.get('/history', timeEntryController.getHistory);
@@ -46,4 +47,6 @@ router.get('/summary', timeEntryController.getSummary);
 // Reports - Admin only or Manager
 const reportController = __importStar(require("../controllers/report.controller"));
 router.get('/reports', auth_middleware_1.authenticate, reportController.getAttendanceReport);
+router.get('/reports/excel', auth_middleware_1.authenticate, reportController.exportExcel);
+router.get('/reports/pdf', auth_middleware_1.authenticate, reportController.exportPDF);
 exports.default = router;

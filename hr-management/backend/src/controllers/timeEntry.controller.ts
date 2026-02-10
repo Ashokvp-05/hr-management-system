@@ -62,12 +62,19 @@ export const getHistory = async (req: Request, res: Response) => {
     }
 };
 
+import cache from '../config/cache';
+
 export const getSummary = async (req: Request, res: Response) => {
     try {
         const userId = (req as AuthRequest).user?.id;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+        const cacheKey = `summary_${userId}`;
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
+
         const summary = await timeEntryService.getSummary(userId);
+        cache.set(cacheKey, summary, 300); // Cache for 5 mins
         res.json(summary);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

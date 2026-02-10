@@ -9,5 +9,7 @@ router.use(authenticate);
 router.get('/', userController.getCurrentUser);
 router.patch('/', userController.updateProfile);
 router.post('/avatar', userController.updateAvatar);
+router.get('/export', userController.exportData);
+router.delete('/', userController.deleteAccount);
 
 export default router;

@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Loader2, Save, User, Smartphone, Mail, Hash, Briefcase, Lock, KeyRound } from "lucide-react"
+import { Loader2, Save, User, Smartphone, Mail, Hash, Briefcase, Lock, KeyRound, LogOut, Clock } from "lucide-react"
+import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +31,9 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 
 const profileSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
@@ -49,21 +52,20 @@ const passwordSchema = z.object({
 })
 
 export default function ProfilePage() {
-    const { data: session } = useSession()
-    const { toast } = useToast()
+    const { data: session, update } = useSession()
     const [loading, setLoading] = useState(false)
     const [passwordLoading, setPasswordLoading] = useState(false)
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+    const [mount, setMount] = useState(false)
 
-    // Mock initial data - in real app, fetch from /api/users/profile
-    const userRole = (session?.user as any)?.role || "EMPLOYEE"
-    const userName = (session?.user as any)?.name
+    // Profile data state
+    const [userData, setUserData] = useState<any>(null)
 
     const form = useForm<z.infer<typeof profileSchema>>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
-            name: userName || "",
-            email: (session?.user as any)?.email || "",
+            name: "",
+            email: "",
             phone: "",
             discordId: "",
         },
@@ -78,20 +80,18 @@ export default function ProfilePage() {
         },
     })
 
-    // Fetch latest profile data
-    const [user, setUser] = useState<any>(session?.user)
-
     useEffect(() => {
+        setMount(true)
         const fetchProfile = async () => {
             const token = (session?.user as any)?.accessToken
             if (!token) return
             try {
-                const res = await fetch("http://localhost:4000/api/profile", {
+                const res = await fetch(`${API_URL}/profile`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 if (res.ok) {
                     const data = await res.json()
-                    setUser(data) // store for UI display
+                    setUserData(data)
                     form.reset({
                         name: data.name || "",
                         email: data.email || "",
@@ -110,7 +110,7 @@ export default function ProfilePage() {
         setLoading(true)
         try {
             const token = (session?.user as any)?.accessToken
-            const res = await fetch("http://localhost:4000/api/profile", {
+            const res = await fetch(`${API_URL}/profile`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -121,18 +121,22 @@ export default function ProfilePage() {
 
             if (!res.ok) throw new Error("Failed to update")
 
-            toast({
-                title: "Profile Updated",
-                description: "Your details have been saved successfully.",
+            const updatedUser = await res.json()
+            setUserData(updatedUser)
+
+            // Update next-auth session
+            await update({
+                ...session,
+                user: {
+                    ...session?.user,
+                    name: data.name,
+                    email: data.email
+                }
             })
-            // Force reload to update session/UI
-            window.location.reload()
+
+            toast.success("Profile Updated")
         } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to update profile.",
-                variant: "destructive"
-            })
+            toast.error("Failed to update profile")
         } finally {
             setLoading(false)
         }
@@ -142,7 +146,7 @@ export default function ProfilePage() {
         setPasswordLoading(true)
         try {
             const token = (session?.user as any)?.accessToken
-            const res = await fetch("http://localhost:4000/api/auth/change-password", {
+            const res = await fetch(`${API_URL}/auth/change-password`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -157,38 +161,36 @@ export default function ProfilePage() {
             const result = await res.json()
             if (!res.ok) throw new Error(result.error || "Failed to update password")
 
-            toast({
-                title: "Password Updated",
-                description: "Your password has been changed successfully.",
-            })
+            toast.success("Password Updated")
             setIsPasswordModalOpen(false)
             passwordForm.reset()
         } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message || "Failed to change password.",
-                variant: "destructive"
-            })
+            toast.error(error.message || "Failed to change password.")
         } finally {
             setPasswordLoading(false)
         }
     }
 
+    if (!mount) return null
+
+    const initial = userData?.name?.charAt(0).toUpperCase() || "U"
+    const roleName = typeof userData?.role === 'object' ? userData.role.name : (userData?.role || "EMPLOYEE")
+    const joinedDate = userData?.joiningDate ? format(new Date(userData.joiningDate), "MMM yyyy") : "Jan 2026"
+
     return (
         <div className="container mx-auto py-10 max-w-4xl space-y-8">
             <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} />
-                    <AvatarFallback>U</AvatarFallback>
+                <Avatar className="h-24 w-24 border-4 border-background shadow-lg items-center justify-center bg-slate-100 dark:bg-slate-800">
+                    <AvatarFallback className="text-4xl font-bold text-slate-500">{initial}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <h1 className="text-3xl font-bold">{user?.name}</h1>
+                    <h1 className="text-3xl font-bold">{userData?.name}</h1>
                     <div className="flex items-center gap-2 mt-2">
                         <Badge variant="outline" className="text-emerald-600 bg-emerald-50 border-emerald-200">
                             Full-Time Employee
                         </Badge>
                         <Badge variant="secondary" className="flex items-center gap-1">
-                            <Briefcase className="w-3 h-3" /> {user?.workMode || "Hybrid"}
+                            <Briefcase className="w-3 h-3" /> {userData?.workMode || "Hybrid"}
                         </Badge>
                     </div>
                 </div>
@@ -287,7 +289,7 @@ export default function ProfilePage() {
                     </Card>
                 </div>
 
-                {/* Right Col: Security & Stats */}
+                {/* Right Col: Security & Access */}
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
@@ -318,7 +320,7 @@ export default function ProfilePage() {
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                                <Input type="password" title="Current Password" placeholder="••••••••" className="pl-9" {...field} />
+                                                                <Input type="password" placeholder="••••••••" className="pl-9" {...field} />
                                                             </div>
                                                         </FormControl>
                                                         <FormMessage />
@@ -334,7 +336,7 @@ export default function ProfilePage() {
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                                <Input type="password" title="New Password" placeholder="••••••••" className="pl-9" {...field} />
+                                                                <Input type="password" placeholder="••••••••" className="pl-9" {...field} />
                                                             </div>
                                                         </FormControl>
                                                         <FormMessage />
@@ -350,7 +352,7 @@ export default function ProfilePage() {
                                                         <FormControl>
                                                             <div className="relative">
                                                                 <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                                <Input type="password" title="Confirm New Password" placeholder="••••••••" className="pl-9" {...field} />
+                                                                <Input type="password" placeholder="••••••••" className="pl-9" {...field} />
                                                             </div>
                                                         </FormControl>
                                                         <FormMessage />
@@ -367,7 +369,9 @@ export default function ProfilePage() {
                                     </Form>
                                 </DialogContent>
                             </Dialog>
-                            <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">Log Out All Devices</Button>
+                            <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => signOut()}>
+                                <LogOut className="mr-2 h-4 w-4" /> Log Out All Devices
+                            </Button>
                         </CardContent>
                     </Card>
 
@@ -380,7 +384,7 @@ export default function ProfilePage() {
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Role</span>
                                     <span className="font-medium text-purple-600">
-                                        {typeof user?.role === 'object' ? user.role.name : (user?.role || "EMPLOYEE")}
+                                        {roleName}
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
@@ -389,13 +393,25 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Joined</span>
-                                    <span className="font-medium">Jan 2026</span>
+                                    <span className="font-medium">{joinedDate}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-50 dark:bg-slate-900 border-none">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-2xl font-bold">0h</p>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Clock className="w-3 h-3" /> Hours this week
+                                    </p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
-
             </div>
         </div>
     )

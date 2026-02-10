@@ -70,8 +70,13 @@ const initCronJobs = () => {
                     yield emailService.sendClockOutReminder(entry.user.email, entry.user.name || 'Employee');
                 }
                 // Send In-App Notification
-                yield notificationService.createNotification(entry.userId, 'Clock Out Reminder', 'It is 7:00 PM. Please remember to clock out if you have finished for the day.', client_1.NotificationType.INFO, // Assuming INFO exists, or we update schema
-                { action: 'clock-out' });
+                yield notificationService.createNotification({
+                    userId: entry.userId,
+                    title: 'Clock Out Reminder',
+                    message: 'It is 7:00 PM. Please remember to clock out if you have finished for the day.',
+                    type: client_1.NotificationType.INFO,
+                    actionData: { action: 'clock-out' }
+                });
             }
         }
         catch (error) {

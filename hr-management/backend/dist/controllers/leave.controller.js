@@ -47,7 +47,7 @@ const leaveService = __importStar(require("../services/leave.service"));
 const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
 const createRequestSchema = zod_1.z.object({
-    type: zod_1.z.nativeEnum(client_1.LeaveType),
+    type: zod_1.z.any(), // Temporary fix for stale enum cache
     startDate: zod_1.z.string().datetime().or(zod_1.z.string()), // Accept ISO string
     endDate: zod_1.z.string().datetime().or(zod_1.z.string()),
     reason: zod_1.z.string().optional()

@@ -42,7 +42,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSummary = exports.getHistory = exports.clockOut = exports.clockIn = exports.getActive = void 0;
+exports.getAllActiveUsers = exports.getSummary = exports.getHistory = exports.clockOut = exports.clockIn = exports.getActive = void 0;
 const timeEntryService = __importStar(require("../services/timeEntry.service"));
 const client_1 = require("@prisma/client");
 const getActive = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -123,3 +123,13 @@ const getSummary = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.getSummary = getSummary;
+const getAllActiveUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const activeUsers = yield timeEntryService.getAllActiveUsers();
+        res.json(activeUsers);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.getAllActiveUsers = getAllActiveUsers;

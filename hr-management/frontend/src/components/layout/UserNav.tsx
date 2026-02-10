@@ -33,7 +33,6 @@ export function UserNav() {
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-9 w-9 border-2 border-primary/20 hover:border-primary/50 transition-colors">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} alt={user?.name || "User"} />
                         <AvatarFallback className="font-bold">{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                 </Button>

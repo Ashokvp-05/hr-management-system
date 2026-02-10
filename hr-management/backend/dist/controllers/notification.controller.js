@@ -42,48 +42,39 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.markAllRead = exports.markRead = exports.getNotifications = void 0;
+exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
 const notificationService = __importStar(require("../services/notification.service"));
 const getNotifications = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     try {
-        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        if (!userId)
-            return res.status(401).json({ error: 'Unauthorized' });
-        const notifications = yield notificationService.getUserNotifications(userId);
+        const userId = req.user.id;
+        const notifications = yield notificationService.getNotifications(userId);
         res.json(notifications);
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Failed to fetch notifications" });
     }
 });
 exports.getNotifications = getNotifications;
-const markRead = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+const markAsRead = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        if (!userId)
-            return res.status(401).json({ error: 'Unauthorized' });
+        const userId = req.user.id;
         const { id } = req.params;
         yield notificationService.markAsRead(id, userId);
-        res.json({ message: 'Marked as read' });
+        res.json({ success: true });
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Failed to mark as read" });
     }
 });
-exports.markRead = markRead;
-const markAllRead = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+exports.markAsRead = markAsRead;
+const markAllAsRead = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        if (!userId)
-            return res.status(401).json({ error: 'Unauthorized' });
+        const userId = req.user.id;
         yield notificationService.markAllAsRead(userId);
-        res.json({ message: 'All marked as read' });
+        res.json({ success: true });
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Failed to mark all as read" });
     }
 });
-exports.markAllRead = markAllRead;
+exports.markAllAsRead = markAllAsRead;

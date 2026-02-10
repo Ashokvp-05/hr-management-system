@@ -1,4 +1,5 @@
 import { auth } from "@/auth"
+import { API_BASE_URL } from "@/lib/config"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import {
@@ -13,7 +14,15 @@ import {
     TrendingUp,
     Users,
     ArrowUpRight,
-    MoreHorizontal
+    MoreHorizontal,
+    Activity,
+    Layers,
+    LayoutDashboard,
+    Cpu,
+    Target,
+    BarChart4,
+    Shield,
+    CalendarPlus
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -24,14 +33,31 @@ import TimeSummary from "@/components/dashboard/TimeSummary"
 import TeamAvailabilityWidget from "@/components/dashboard/TeamAvailabilityWidget"
 import AttendanceChart from "@/components/dashboard/AttendanceChart"
 import NotificationBell from "@/components/layout/NotificationBell"
+import { ProductivityAnalytics } from "@/components/dashboard/ProductivityAnalytics"
+import { TicketAnalytics } from "@/components/dashboard/TicketAnalytics"
+import { UpcomingEventsWidget } from "@/components/dashboard/UpcomingEventsWidget"
+import { AnnouncementBanner } from "@/components/dashboard/AnnouncementBanner"
+import ProfessionalStatusWidget from "@/components/dashboard/ProfessionalStatusWidget"
+import MoodPulseWidget from "@/components/dashboard/MoodPulseWidget"
 import SystemStatusWidget from "@/components/dashboard/SystemStatusWidget"
-import ComplianceWidget from "@/components/dashboard/ComplianceWidget"
+import SmartFocusWidget from "@/components/dashboard/SmartFocusWidget"
+
 
 export default async function DashboardPage() {
     const session = await auth()
 
     if (!session) {
         redirect("/login")
+    }
+
+    const role = (session.user?.role || "EMPLOYEE").toUpperCase()
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN'].includes(role)
+
+    // Redirect non-employees to their specific dashboards
+    if (isAdmin) {
+        redirect("/admin")
+    } else if (role === 'MANAGER') {
+        redirect("/manager")
     }
 
     const token = (session.user as any)?.accessToken || ""
@@ -43,8 +69,8 @@ export default async function DashboardPage() {
 
     try {
         const [summaryRes, balanceRes] = await Promise.all([
-            fetch(`http://localhost:4000/api/time/summary`, { headers: { Authorization: `Bearer ${token}` } }),
-            fetch(`http://localhost:4000/api/leaves/balance`, { headers: { Authorization: `Bearer ${token}` } })
+            fetch(`${API_BASE_URL}/time/summary`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_BASE_URL}/leaves/balance`, { headers: { Authorization: `Bearer ${token}` } })
         ])
 
         if (summaryRes.ok) summary = await summaryRes.json()
@@ -54,126 +80,115 @@ export default async function DashboardPage() {
     }
 
     const totalLeaves = leaveBalance.sick + leaveBalance.casual + leaveBalance.earned
-
-    // Modern Date Format
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
     return (
-        <div className="flex-1 space-y-8 p-8 pt-6 animate-in fade-in duration-700">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">{today}</p>
-                    <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
-                        Welcome back, <span className="text-indigo-600">{userName}</span>
-                    </h1>
-                </div>
-                <div className="flex items-center gap-3">
-                    <NotificationBell />
-                    <Button variant="outline" className="rounded-full shadow-none border-border/60 hover:bg-muted" asChild>
-                        <Link href="/profile">My Profile</Link>
-                    </Button>
-                    <Button className="rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20" asChild>
-                        <Link href="/leave" className="flex items-center gap-2">
-                            Apply Leave <ArrowUpRight className="w-4 h-4" />
-                        </Link>
-                    </Button>
-                </div>
-            </div>
+        <div className="flex flex-col min-h-screen">
+            <AnnouncementBanner token={token} />
 
-            <Separator className="bg-border/60" />
+            <div className="flex-1 p-4 lg:p-6 space-y-4 max-w-[1920px] mx-auto w-full h-[calc(100vh-80px)] overflow-hidden flex flex-col">
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* LEFT COLUMN: Prime Actions & Analytics (8 cols) */}
-                <div className="lg:col-span-8 space-y-8">
+                {/* MODERN HR LAYOUT: TWO COLUMNS (Main Content + Sidebar) */}
+                <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-8 h-full overflow-y-auto pr-2 pb-20">
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Clock Widget Card */}
-                        <ClockWidget token={token} />
+                    {/* LEFT COLUMN: CONTEXT & DATA (8 cols) */}
+                    <div className="xl:col-span-8 flex flex-col gap-8">
 
-                        {/* Analytic Overview */}
-                        <div className="space-y-4">
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-indigo-500" />
-                                Week at a Glance
-                            </h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <Card className="shadow-sm border-l-4 border-l-emerald-500">
-                                    <CardContent className="p-4 flex flex-col justify-center">
-                                        <p className="text-xs text-muted-foreground uppercase font-bold">Past 7 Days</p>
-                                        <div className="text-2xl font-bold mt-1">{summary.totalHours}h</div>
-                                        <p className="text-[10px] text-muted-foreground">{summary.daysWorked} Days Active</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="shadow-sm border-l-4 border-l-blue-500">
-                                    <CardContent className="p-4 flex flex-col justify-center">
-                                        <p className="text-xs text-muted-foreground uppercase font-bold">Overtime</p>
-                                        <div className="text-2xl font-bold mt-1">+{summary.overtimeHours}h</div>
-                                        <p className="text-[10px] text-emerald-600 font-medium">Confirmed</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="col-span-2 shadow-sm border-dashed">
-                                    <CardContent className="p-4 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground uppercase font-bold">Leave Balance</p>
-                                            <div className="text-xl font-bold mt-1">{totalLeaves} Days</div>
-                                            <p className="text-[10px] text-muted-foreground">S:{leaveBalance.sick} C:{leaveBalance.casual} E:{leaveBalance.earned}</p>
+                        {/* 1. WELCOME BANNER & QUICK ACTIONS */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-white/20 transition-colors" />
+                            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/20 text-xs font-medium flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> System Online
                                         </div>
-                                        <Button variant="ghost" size="sm" asChild>
-                                            <Link href="/leave" className="text-xs">Apply Now →</Link>
-                                        </Button>
+                                        <div className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-medium opacity-80">
+                                            {today}
+                                        </div>
+                                    </div>
+                                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">Good morning, {userName}</h1>
+                                    <p className="text-indigo-100 font-medium text-lg">You're on track with your weekly goals.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. KEY METRICS GRID */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {[
+                                { label: "Total Hours", value: summary.totalHours, unit: "h", icon: BarChart4, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-500/10" },
+                                { label: "Overtime", value: summary.overtimeHours, unit: "h", icon: Zap, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10" },
+                                { label: "Leave Balance", value: totalLeaves, unit: "Days", icon: Layers, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+                                { label: "Work Streak", value: summary.daysWorked, unit: "Days", icon: Target, color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-500/10" },
+                            ].map((stat, i) => (
+                                <Card key={i} className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-[1.5rem] hover:shadow-md transition-shadow">
+                                    <CardContent className="p-5 flex flex-col gap-3">
+                                        <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                                            <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                                                {stat.value} <span className="text-sm font-medium text-muted-foreground">{stat.unit}</span>
+                                            </p>
+                                            <p className="text-xs font-medium text-muted-foreground mt-1">{stat.label}</p>
+                                        </div>
                                     </CardContent>
                                 </Card>
-                            </div>
+                            ))}
                         </div>
-                    </div>
 
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold">Department Activity</h2>
-                            <Button variant="link" size="sm" className="text-indigo-600 p-0 h-auto" asChild>
-                                <Link href="/reports">View Detailed Analytics</Link>
-                            </Button>
-                        </div>
-                        <AttendanceChart token={token} />
-                    </div>
-
-                </div>
-
-                {/* RIGHT COLUMN: Context & Social (4 cols) */}
-                <div className="lg:col-span-4 space-y-6">
-
-                    {/* Team Widget - Redesigned container */}
-                    <div className="bg-muted/30 rounded-xl p-1 border border-border/50">
-                        <TeamAvailabilityWidget />
-                    </div>
-
-                    {/* System Status & Compliance */}
-                    <SystemStatusWidget />
-                    <ComplianceWidget />
-
-                    <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <h4 className="font-medium text-sm">Design Team</h4>
-                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-600 font-bold text-xs">JD</div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">Project "Titan" Sync</p>
-                                    <p className="text-xs text-muted-foreground">10:00 AM &bull; Room 302</p>
+                        {/* 3. ACTIVITY CHART */}
+                        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Attendance Activity</h3>
+                                    <p className="text-sm text-slate-500">Your visual timeline for this week</p>
                                 </div>
+                                <Button variant="ghost" size="sm" className="text-indigo-600 font-medium hover:bg-indigo-50 rounded-xl">
+                                    View Detailed Report <ArrowUpRight className="w-4 h-4 ml-1" />
+                                </Button>
                             </div>
-                            <Separator />
-                            <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600 font-bold text-xs">HR</div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">Performance Review</p>
-                                    <p className="text-xs text-muted-foreground">Tomorrow, 2:00 PM</p>
-                                </div>
+                            <div className="h-[300px] w-full">
+                                <AttendanceChart token={token} />
                             </div>
                         </div>
+
+                        {/* 4. ANALYTICS METRICS */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="h-full">
+                                <TicketAnalytics token={token} />
+                            </div>
+                            <div className="h-full">
+                                <ProductivityAnalytics token={token} />
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    {/* RIGHT COLUMN: TOOLS & SIDEBAR (4 cols) */}
+                    <div className="xl:col-span-4 flex flex-col gap-6">
+
+                        {/* 1. CLOCK WIDGET (Primary Sidebar Tool) */}
+                        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-2 shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 relative z-20">
+                            <ClockWidget token={token} />
+                        </div>
+
+                        {/* 2. AI COACH */}
+                        <SmartFocusWidget />
+
+                        {/* 3. QUICK INFO TABS */}
+                        <div className="bg-slate-50 dark:bg-white/5 rounded-[2rem] p-2 space-y-2 border border-slate-200 dark:border-slate-800">
+                            <div className="p-4 bg-white dark:bg-black/20 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800/50">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Upcoming Schedule</h4>
+                                <UpcomingEventsWidget />
+                            </div>
+                            <div className="p-4">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Team Status</h4>
+                                <TeamAvailabilityWidget />
+                            </div>
+                        </div>
+
                     </div>
 
                 </div>

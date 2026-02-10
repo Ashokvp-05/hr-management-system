@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientSessionProvider from "@/components/providers/SessionProvider";
-import NextTopLoader from 'nextjs-toploader';
 import { auth } from "@/auth";
 import { CommandMenu } from "@/components/layout/CommandMenu";
+import FloatingTicketButton from "@/components/FloatingTicketButton";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,13 +20,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rudratic Technologies HR",
-  description: "Modern HR Management System by Rudratic Technologies",
+  title: {
+    template: "%s | Rudratic HR",
+    default: "Rudratic Technologies HR Management System"
+  },
+  description: "Enterprise-grade HR Platform by Rudratic Technologies",
 };
 
-import { ThemeProvider } from "@/components/theme-provider";
-
 export default async function RootLayout({
+  // Root Layout wrapping everything
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -41,10 +46,13 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <NextTopLoader showSpinner={false} color="#2563eb" />
+
           <ClientSessionProvider session={session}>
             <CommandMenu />
             {children}
+            <Toaster />
+            <SonnerToaster richColors position="top-right" />
+            <FloatingTicketButton />
           </ClientSessionProvider>
         </ThemeProvider>
       </body>

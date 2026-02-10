@@ -82,73 +82,99 @@
 }
 
 .dark {
-  /* Premium Slate/Zinc Dark Mode */
-  --background: oklch(0.10 0.01 240);
-  /* Deep Slate */
-  --foreground: oklch(0.98 0.00 0);
-  /* Pure White Text */
+  /* Premium Midnight Velvet Dark Mode - High Contrast & Engaging */
+  --background: oklch(0.08 0.01 260);
+  /* Deeper midnight background */
+  --foreground: oklch(0.98 0.01 260);
 
-  --card: oklch(0.13 0.01 240);
-  /* Slightly lighter slate card */
-  --card-foreground: oklch(0.98 0.00 0);
+  --card: oklch(0.12 0.015 260);
+  /* Rich card color with subtle blue tint */
+  --card-foreground: oklch(0.98 0.01 260);
 
-  --popover: oklch(0.13 0.01 240);
-  --popover-foreground: oklch(0.98 0.00 0);
+  --popover: oklch(0.12 0.015 260);
+  --popover-foreground: oklch(0.98 0.01 260);
 
-  --primary: oklch(0.65 0.22 260);
-  /* Electric Blue - High Contrast */
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.65 0.2 260);
+  /* Vibrant Indigo for dark mode accents */
+  --primary-foreground: oklch(0.98 0 0);
 
-  --secondary: oklch(0.20 0.02 240);
-  /* Lighter slate for secondary elements */
-  --secondary-foreground: oklch(0.98 0.00 0);
+  --secondary: oklch(0.18 0.02 260);
+  --secondary-foreground: oklch(0.98 0 0);
 
-  --muted: oklch(0.20 0.02 240);
-  --muted-foreground: oklch(0.70 0.01 240);
+  --muted: oklch(0.18 0.02 260);
+  --muted-foreground: oklch(0.7 0.02 260);
 
-  --accent: oklch(0.25 0.03 260);
-  /* Blue-tinted hover state */
-  --accent-foreground: oklch(0.98 0.00 0);
+  --accent: oklch(0.22 0.03 260);
+  --accent-foreground: oklch(0.98 0.01 260);
 
-  --destructive: oklch(0.6 0.25 25);
-  --destructive-foreground: oklch(0.98 0.00 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.25 0.01 240);
-  /* Subtle slate border */
-  --input: oklch(0.25 0.01 240);
-  --ring: oklch(0.65 0.22 260);
+  --border: oklch(0.18 0.02 260);
+  --input: oklch(0.15 0.02 260);
+  --ring: oklch(0.65 0.2 260);
 
-  --chart-1: oklch(0.65 0.22 260);
-  /* Matching Primary */
-  --chart-2: oklch(0.60 0.18 180);
-  /* Cyan */
-  --chart-3: oklch(0.55 0.25 340);
-  /* Pink/Purple */
-  --chart-4: oklch(0.70 0.20 90);
-  /* Yellow/Orange */
-  --chart-5: oklch(0.65 0.22 30);
-  /* Red/Orange */
+  --chart-1: oklch(0.65 0.2 260);
+  /* Indigo */
+  --chart-2: oklch(0.65 0.18 190);
+  /* Cyan/Teal */
+  --chart-3: oklch(0.7 0.2 60);
+  /* Gold/Yellow */
+  --chart-4: oklch(0.65 0.22 300);
+  /* Violet/Purple */
+  --chart-5: oklch(0.6 0.25 20);
+  /* Rose/Red */
 
-  --sidebar: oklch(0.11 0.01 240);
-  /* Dark sidebar */
-  --sidebar-foreground: oklch(0.98 0.00 0);
-  --sidebar-primary: oklch(0.65 0.22 260);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.18 0.02 240);
-  --sidebar-accent-foreground: oklch(0.98 0.00 0);
-  --sidebar-border: oklch(0.20 0.01 240);
-  --sidebar-ring: oklch(0.65 0.22 260);
+  --sidebar: oklch(0.10 0.015 260);
+  --sidebar-foreground: oklch(0.98 0.01 260);
+  --sidebar-primary: oklch(0.65 0.2 260);
+  --sidebar-primary-foreground: oklch(0.98 0.01 260);
+  --sidebar-accent: oklch(0.18 0.02 260);
+  --sidebar-accent-foreground: oklch(0.98 0.01 260);
+  --sidebar-border: oklch(0.18 0.02 260);
+  --sidebar-ring: oklch(0.65 0.2 260);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 transition-colors duration-200;
   }
 
   body {
-    @apply bg-background text-foreground;
-    background-image: radial-gradient(var(--border) 1px, transparent 1px);
-    background-size: 40px 40px;
-    background-attachment: fixed;
+    @apply bg-background text-foreground selection:bg-primary/30;
+    /* Subtle mesh gradient background for premium feel */
+    background-image:
+      radial-gradient(at 0% 0%, oklch(var(--primary) / 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, oklch(var(--primary) / 0.03) 0px, transparent 50%);
   }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+  }
+
+  .dark .glass {
+    @apply bg-black/20 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+
+  .premium-card {
+    @apply relative overflow-hidden rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:bg-card hover:border-border hover:shadow-2xl hover:shadow-primary/5 active:scale-[0.98];
+  }
+
+  .neo-glow {
+    box-shadow: 0 0 20px oklch(vvar(--primary) / 0.1);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-foreground via-foreground to-foreground/50;
+  }
+}
+
+/* Hide Next.js Static Indicator (Black circle with 'N' or lightning) */
+[data-nextjs-toast] {
+  display: none !important;
+}
+.nextjs-toast-errors-parent {
+  display: none !important;
 }

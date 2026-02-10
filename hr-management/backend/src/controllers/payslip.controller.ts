@@ -1,0 +1,75 @@
+import { Request, Response } from 'express';
+import * as payslipService from '../services/payslip.service';
+import * as auditService from '../services/audit.service';
+
+export const uploadPayslip = async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const { userId, month, year, amount } = req.body;
+
+        if (!userId || !month || !year || !amount) {
+            return res.status(400).json({ error: "Missing required fields: userId, month, year, amount" });
+        }
+
+        const payslip = await payslipService.uploadPayslip(
+            userId,
+            month,
+            parseInt(year),
+            parseFloat(amount),
+            req.file.buffer,
+            req.file.originalname
+        );
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('PAYSLIP_UPLOAD', adminId, payslip.id, `Uploaded payslip for User ${userId}`);
+
+        res.status(201).json(payslip);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+export const downloadPayslip = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const requesterId = (req as any).user.id;
+        const role = (req as any).user.role; // From JWT
+
+        const { path: filePath, filename } = await payslipService.getPayslipFile(id, requesterId, role);
+
+        auditService.logAction('PAYSLIP_DOWNLOAD', requesterId, id, `Downloaded payslip`);
+
+        res.download(filePath, filename);
+    } catch (error: any) {
+        if (error.message.includes("Unauthorized")) {
+            return res.status(403).json({ error: error.message });
+        }
+        res.status(404).json({ error: error.message });
+    }
+};
+
+export const getMyPayslips = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.id;
+        const payslips = await payslipService.getMyPayslips(userId);
+        res.json(payslips);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getAllPayslips = async (req: Request, res: Response) => {
+    try {
+        const { year, month } = req.query;
+        const payslips = await payslipService.getAllPayslips(
+            year ? parseInt(year as string) : undefined,
+            month as string
+        );
+        res.json(payslips);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

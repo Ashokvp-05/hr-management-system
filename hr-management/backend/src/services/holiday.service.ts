@@ -1,4 +1,5 @@
 import prisma from '../config/db';
+import cache from '../config/cache';
 
 const HOLIDAYS_2026 = [
     { name: 'Makar Sankranti', date: '2026-01-14' },
@@ -47,12 +48,20 @@ export const syncHolidays = async (year: number) => {
         createdCount++;
     }
 
+    cache.del(`holidays_${year}`);
     return { count: createdCount, message: `Synced ${createdCount} holidays for ${year}` };
 };
 
 export const getHolidays = async (year: number) => {
-    return prisma.holiday.findMany({
+    const key = `holidays_${year}`;
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    const holidays = await prisma.holiday.findMany({
         where: { year },
         orderBy: { date: 'asc' }
     });
+
+    cache.set(key, holidays, 86400); // 24 hours
+    return holidays;
 };

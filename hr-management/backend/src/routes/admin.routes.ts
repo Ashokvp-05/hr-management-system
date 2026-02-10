@@ -6,13 +6,17 @@ const router = Router();
 
 // Middleware to check if user is admin should be added here
 router.use(authenticate); // Must be logged in
-router.use(authorize(['ADMIN']));
+// Read-Only Routes (Manager Allowed)
+router.get('/pending-users', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getPendingUsers);
+router.get('/stats', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getStats);
+router.get('/overview', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getOverview);
+router.get('/roles', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), adminController.getRoles);
+router.get('/audit-logs', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), adminController.getAuditLogs);
 
-router.get('/pending-users', adminController.getPendingUsers);
-router.get('/stats', adminController.getStats);
-router.post('/sync/sheets', adminController.syncToSheets);
-router.put('/users/:id/approve', adminController.approveUser);
-router.put('/users/:id/reject', adminController.rejectUser);
+// Write Routes (Manager Restricted)
+router.post('/sync/sheets', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.syncToSheets);
+router.put('/users/:id/approve', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.approveUser);
+router.put('/users/:id/reject', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.rejectUser);
 
 
 export default router;

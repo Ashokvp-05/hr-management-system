@@ -42,7 +42,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUser = exports.getUsers = void 0;
+exports.updateAvatar = exports.updateProfile = exports.getCurrentUser = exports.updateUser = exports.getUsers = void 0;
 const userService = __importStar(require("../services/user.service"));
 const getUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -66,3 +66,37 @@ const updateUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.updateUser = updateUser;
+const getCurrentUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const user = yield userService.getUserById(userId);
+        res.json(user);
+    }
+    catch (error) {
+        res.status(404).json({ error: error.message });
+    }
+});
+exports.getCurrentUser = getCurrentUser;
+const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const user = yield userService.updateProfile(userId, req.body);
+        res.json(user);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.updateProfile = updateProfile;
+const updateAvatar = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const { avatarUrl } = req.body;
+        const user = yield userService.updateAvatar(userId, avatarUrl);
+        res.json(user);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.updateAvatar = updateAvatar;

@@ -9,6 +9,7 @@ export interface AuthRequest extends Request {
         id: string;
         email: string;
         roleId?: string;
+        role?: string;
         status: UserStatus;
     };
 }

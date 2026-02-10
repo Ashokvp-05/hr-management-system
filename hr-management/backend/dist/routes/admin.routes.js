@@ -39,10 +39,13 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 // Middleware to check if user is admin should be added here
 router.use(auth_middleware_1.authenticate); // Must be logged in
-router.use((0, auth_middleware_1.authorize)(['ADMIN']));
-router.get('/pending-users', adminController.getPendingUsers);
-router.get('/stats', adminController.getStats);
-router.post('/sync/sheets', adminController.syncToSheets);
-router.put('/users/:id/approve', adminController.approveUser);
-router.put('/users/:id/reject', adminController.rejectUser);
+// Read-Only Routes (Manager Allowed)
+router.get('/pending-users', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getPendingUsers);
+router.get('/stats', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getStats);
+router.get('/overview', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getOverview);
+router.get('/roles', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), adminController.getRoles);
+// Write Routes (Manager Restricted)
+router.post('/sync/sheets', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.syncToSheets);
+router.put('/users/:id/approve', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.approveUser);
+router.put('/users/:id/reject', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.rejectUser);
 exports.default = router;

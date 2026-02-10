@@ -10,6 +10,9 @@ const registerSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
     name: z.string().min(2),
+    roleId: z.string().optional(),
+    department: z.string().optional(),
+    designation: z.string().optional()
 });
 
 const loginSchema = z.object({
@@ -18,7 +21,7 @@ const loginSchema = z.object({
 });
 
 export const requestRegistration = async (data: z.infer<typeof registerSchema>) => {
-    const { email, password, name } = registerSchema.parse(data);
+    const { email, password, name, roleId, department, designation } = registerSchema.parse(data);
 
     const existingUser = await prisma.user.findUnique({
         where: { email },
@@ -30,12 +33,23 @@ export const requestRegistration = async (data: z.infer<typeof registerSchema>) 
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    let finalRoleId = roleId;
+    if (!finalRoleId) {
+        const employeeRole = await prisma.role.findUnique({
+            where: { name: 'EMPLOYEE' }
+        });
+        finalRoleId = employeeRole?.id;
+    }
+
     const user = await prisma.user.create({
         data: {
             email,
             name,
             password: hashedPassword,
             status: UserStatus.ACTIVE,
+            roleId: finalRoleId,
+            department,
+            designation
         },
     });
 
@@ -81,6 +95,7 @@ export const verifyCredentials = async (data: z.infer<typeof loginSchema>) => {
             id: user.id,
             email: user.email,
             roleId: user.roleId,
+            role: user.role?.name,
             status: user.status
         },
         process.env.JWT_SECRET || 'super-secret-key',

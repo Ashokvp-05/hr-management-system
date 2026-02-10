@@ -18,6 +18,26 @@ export default function SettingsPage() {
     const [passwordData, setPasswordData] = useState({ current: "", new: "", confirm: "" })
     const [passLoading, setPassLoading] = useState(false)
 
+    // WORK PREFERENCES STATE
+    const [delegationEnabled, setDelegationEnabled] = useState(false)
+    const [delegateUser, setDelegateUser] = useState("")
+    const [wfhDays, setWfhDays] = useState<string[]>(["Wed", "Fri"])
+    const [shareContact, setShareContact] = useState(true)
+
+    const toggleWfhDay = (day: string) => {
+        setWfhDays(prev =>
+            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+        )
+    }
+
+    const handleDelegationToggle = (checked: boolean) => {
+        setDelegationEnabled(checked)
+        toast({
+            title: checked ? "Delegation Mode Enabled" : "Delegation Mode Disabled",
+            description: checked ? "Approvals will be routed to your delegate." : "You have reclaimed approval authority.",
+        })
+    }
+
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault()
         if (passwordData.new !== passwordData.confirm) {
@@ -72,42 +92,74 @@ export default function SettingsPage() {
                 <TabsContent value="general">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Appearance & Locale</CardTitle>
-                            <CardDescription>Customize how the dashboard looks for you.</CardDescription>
+                            <CardTitle>Work Preferences & Delegation</CardTitle>
+                            <CardDescription>Manage your availability and authority delegation.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex items-center justify-between">
+                            {/* DELEGATION */}
+                            <div className="flex items-center justify-between border-b pb-4">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">Dark Mode</Label>
-                                    <p className="text-sm text-muted-foreground">Enable dark theme for the interface.</p>
+                                    <Label className="text-base">Delegation Mode</Label>
+                                    <p className="text-sm text-muted-foreground">Auto-assign approvals when Out of Office.</p>
                                 </div>
-                                <Switch checked={false} />
+                                <Switch
+                                    checked={delegationEnabled}
+                                    onCheckedChange={handleDelegationToggle}
+                                />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Language</Label>
-                                <Select defaultValue="en">
+
+                            <div className="space-y-3">
+                                <Label>Delegate Authority To</Label>
+                                <Select
+                                    disabled={!delegationEnabled}
+                                    value={delegateUser}
+                                    onValueChange={setDelegateUser}
+                                >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select Language" />
+                                        <SelectValue placeholder="Select a colleague..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="en">English</SelectItem>
-                                        <SelectItem value="es">Spanish</SelectItem>
-                                        <SelectItem value="fr">French</SelectItem>
+                                        <SelectItem value="sarah">Sarah Connor (Sr. Dev)</SelectItem>
+                                        <SelectItem value="james">James Bond (Designer)</SelectItem>
+                                        <SelectItem value="emily">Emily Blunt (Product)</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p className="text-[10px] text-muted-foreground">Only active when Delegation Mode is ON.</p>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Time Zone</Label>
-                                <Select defaultValue="ist">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Timezone" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="utc">UTC (GMT+0)</SelectItem>
-                                        <SelectItem value="ist">India (GMT+5:30)</SelectItem>
-                                        <SelectItem value="pst">Pacific (GMT-8)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+
+                            {/* REMOTE WORK */}
+                            <div className="space-y-3 pt-2">
+                                <Label>Remote Work Schedule</Label>
+                                <div className="flex gap-2">
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day) => (
+                                        <div
+                                            key={day}
+                                            onClick={() => toggleWfhDay(day)}
+                                            className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold border cursor-pointer transition-all ${wfhDays.includes(day)
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200 dark:shadow-none'
+                                                    : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:border-indigo-300'
+                                                }`}
+                                        >
+                                            {day}
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">Selected days are marked as WFH in Team Calendar.</p>
+                            </div>
+
+                            {/* PRIVACY */}
+                            <div className="flex items-center justify-between pt-4 border-t">
+                                <div className="space-y-0.5">
+                                    <Label>Contact Visibility</Label>
+                                    <p className="text-sm text-muted-foreground">Share personal phone with team.</p>
+                                </div>
+                                <Switch
+                                    checked={shareContact}
+                                    onCheckedChange={(c) => {
+                                        setShareContact(c)
+                                        toast({ title: c ? "Visibility On" : "Visibility Off", description: "Privacy settings updated." })
+                                    }}
+                                />
                             </div>
                         </CardContent>
                     </Card>

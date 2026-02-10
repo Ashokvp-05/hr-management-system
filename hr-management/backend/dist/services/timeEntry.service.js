@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getReport = exports.getSummary = exports.getHistory = exports.clockOut = exports.clockIn = exports.getActiveEntry = void 0;
+exports.getAllActiveUsers = exports.getReport = exports.getSummary = exports.getHistory = exports.clockOut = exports.clockIn = exports.getActiveEntry = void 0;
 const db_1 = __importDefault(require("../config/db"));
 const client_1 = require("@prisma/client");
 const getActiveEntry = (userId) => __awaiter(void 0, void 0, void 0, function* () {
@@ -106,14 +106,15 @@ const getSummary = (userId) => __awaiter(void 0, void 0, void 0, function* () {
     };
 });
 exports.getSummary = getSummary;
-const getReport = (startDate, endDate) => __awaiter(void 0, void 0, void 0, function* () {
+const getReport = (startDate, endDate, userId) => __awaiter(void 0, void 0, void 0, function* () {
     return db_1.default.timeEntry.findMany({
         where: {
+            userId: userId ? userId : undefined,
             clockIn: {
                 gte: startDate,
                 lte: endDate
             },
-            status: client_1.TimeEntryStatus.COMPLETED
+            status: { in: [client_1.TimeEntryStatus.COMPLETED, client_1.TimeEntryStatus.ACTIVE] }
         },
         include: {
             user: {
@@ -124,3 +125,25 @@ const getReport = (startDate, endDate) => __awaiter(void 0, void 0, void 0, func
     });
 });
 exports.getReport = getReport;
+const getAllActiveUsers = () => __awaiter(void 0, void 0, void 0, function* () {
+    return db_1.default.timeEntry.findMany({
+        where: {
+            status: client_1.TimeEntryStatus.ACTIVE
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    role: true,
+                    avatarUrl: true
+                }
+            }
+        },
+        orderBy: {
+            clockIn: 'desc'
+        }
+    });
+});
+exports.getAllActiveUsers = getAllActiveUsers;

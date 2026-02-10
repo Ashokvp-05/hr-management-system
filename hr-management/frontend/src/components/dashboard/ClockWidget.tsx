@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, MapPin, Briefcase, Clock, PlayCircle, StopCircle } from "lucide-react"
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ClockWidget({ token }: { token: string }) {
     const [loading, setLoading] = useState(true)
@@ -63,11 +64,19 @@ export default function ClockWidget({ token }: { token: string }) {
                 }
 
                 try {
-                    // Optional: Set a specific loading state text if you had one, using setActionLoading(true) implies work is happening.
+                    // 1. Proactively check if it's already denied
+                    if ("permissions" in navigator) {
+                        const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+                        if (status.state === 'denied') {
+                            throw new Error("Location permission is BLOCKED. Click the lock icon in the address bar to unblock it.");
+                        }
+                    }
+
+                    // 2. Request the position (This triggers the browser pop-up)
                     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                         navigator.geolocation.getCurrentPosition(resolve, reject, {
                             enableHighAccuracy: true,
-                            timeout: 10000,
+                            timeout: 8000,
                             maximumAge: 0
                         });
                     });
@@ -78,15 +87,14 @@ export default function ClockWidget({ token }: { token: string }) {
                         accuracy: position.coords.accuracy
                     };
                 } catch (geoErr: any) {
-                    console.error("Geolocation error:", geoErr);
                     if (geoErr.code === 1) {
-                        throw new Error("Location permission denied. Please enable location services to clock in remotely.");
+                        throw new Error("Please 'Allow' location access in the browser popup to clock in from home.");
                     } else if (geoErr.code === 2) {
-                        throw new Error("Location unavailable. Please check your network.");
+                        throw new Error("Location positioning failed. Please check your GPS/Network.");
                     } else if (geoErr.code === 3) {
-                        throw new Error("Location request timed out.");
+                        throw new Error("Location request timed out. Please try again.");
                     } else {
-                        throw new Error("Failed to retrieve location.");
+                        throw new Error(geoErr.message || "Could not verify location.");
                     }
                 }
             }
@@ -115,7 +123,6 @@ export default function ClockWidget({ token }: { token: string }) {
     }
 
     const handleClockOutClick = () => {
-        // Check if duration > 12 hours (12 * 60 * 60 * 1000 = 43200000 ms)
         if (elapsedTime > 43200000) {
             setShowOvertimeModal(true)
         } else {
@@ -154,95 +161,118 @@ export default function ClockWidget({ token }: { token: string }) {
     }
 
     if (loading) {
-        return <Card className="w-full h-48 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></Card>
+        return (
+            <div className="w-full animate-pulse space-y-4">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-20 w-full rounded-2xl" />
+                <Skeleton className="h-12 w-full rounded-2xl" />
+            </div>
+        )
     }
 
     return (
         <>
-            <Card className="w-full shadow-sm border-border/60">
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center justify-between text-muted-foreground">
-                        <span>Time Tracker</span>
-                        <Clock className="w-4 h-4 opacity-50" />
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-4">
-                    {error && <Alert variant="destructive" className="py-2"><AlertDescription>{error}</AlertDescription></Alert>}
+            <div className="flex flex-col h-full justify-between">
+
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-indigo-500" /> Time Tracker
+                    </h3>
+                    {activeEntry && (
+                        <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-xs font-semibold">Active</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Timer Display */}
+                <div className="flex-1 flex flex-col items-center justify-center py-4">
+                    {error && <Alert variant="destructive" className="mb-4 py-2 text-xs font-semibold rounded-lg"><AlertDescription>{error}</AlertDescription></Alert>}
 
                     {activeEntry ? (
-                        <div className="flex flex-col items-center justify-center space-y-1">
-                            <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-semibold flex items-center gap-1.5 animate-pulse">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                ACTIVE SESSION
-                            </div>
-                            <div className="text-5xl font-mono font-medium tracking-tight tabular-nums">
+                        <div className="text-center space-y-1">
+                            <div className="text-5xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
                                 {formatTime(elapsedTime)}
                             </div>
-                            <div className="text-xs text-muted-foreground flex flex-col items-center gap-1">
-                                <div className="flex items-center gap-1">
-                                    {activeEntry.clockType === 'REMOTE' ? <MapPin className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
-                                    {activeEntry.clockType === 'REMOTE' ? 'Remote' : 'Office'} &bull; Started at {new Date(activeEntry.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                                {activeEntry.clockType === 'REMOTE' && (
-                                    <span className="text-[10px] text-emerald-500 flex items-center gap-1">
-                                        &bull; Location Captured
-                                    </span>
-                                )}
+                            <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500">
+                                {activeEntry.clockType === 'REMOTE' ? <MapPin className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+                                {activeEntry.clockType === 'REMOTE' ? 'Remote' : 'Office'}
                             </div>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            <div className="text-center py-2">
-                                <span className="text-3xl font-mono text-muted-foreground/30">00:00:00</span>
-                                <p className="text-xs text-muted-foreground mt-1">Ready to start your shift?</p>
+                        <div className="w-full space-y-6">
+                            <div className="text-center">
+                                <span className="text-5xl font-bold text-slate-300 dark:text-slate-700 tracking-tight select-none">00:00:00</span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div
-                                    className={`cursor-pointer border rounded-lg p-3 flex flex-col items-center gap-1 transition-all ${clockType === 'IN_OFFICE' ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'hover:bg-muted'}`}
+                            {/* Clean Segmented Control */}
+                            <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex">
+                                <button
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${clockType === 'IN_OFFICE' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
                                     onClick={() => setClockType('IN_OFFICE')}
                                 >
-                                    <Briefcase className="w-5 h-5 mb-1 opacity-80" />
-                                    <span className="text-xs font-medium">Office</span>
-                                </div>
-                                <div
-                                    className={`cursor-pointer border rounded-lg p-3 flex flex-col items-center gap-1 transition-all ${clockType === 'REMOTE' ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'hover:bg-muted'}`}
+                                    <Briefcase className="w-3.5 h-3.5" /> Office
+                                </button>
+                                <button
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${clockType === 'REMOTE' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
                                     onClick={() => setClockType('REMOTE')}
                                 >
-                                    <MapPin className="w-5 h-5 mb-1 opacity-80" />
-                                    <span className="text-xs font-medium">Remote</span>
-                                </div>
+                                    <MapPin className="w-3.5 h-3.5" /> Remote
+                                </button>
                             </div>
                         </div>
                     )}
-                </CardContent>
-                <CardFooter>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-6">
                     {activeEntry ? (
-                        <Button variant="destructive" className="w-full" onClick={handleClockOutClick} disabled={actionLoading}>
-                            {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            End Shift
+                        <Button
+                            variant="destructive"
+                            className="w-full h-12 rounded-xl bg-white border-2 border-rose-100 text-rose-600 hover:bg-rose-50 hover:border-rose-200 shadow-sm text-sm font-bold active:scale-[0.98] transition-all"
+                            onClick={handleClockOutClick}
+                            disabled={actionLoading}
+                        >
+                            {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <StopCircle className="w-5 h-5 mr-2" />}
+                            Clock Out
                         </Button>
                     ) : (
-                        <Button className="w-full" size="lg" onClick={handleClockIn} disabled={actionLoading}>
-                            {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Start Work
+                        <Button
+                            className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                            onClick={handleClockIn}
+                            disabled={actionLoading}
+                        >
+                            {actionLoading ? (
+                                <span className="flex items-center">
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Starting...
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    Clock In <PlayCircle className="w-4 h-4" />
+                                </span>
+                            )}
                         </Button>
                     )}
-                </CardFooter>
-            </Card>
+                </div>
+            </div>
 
             <AlertDialog open={showOvertimeModal} onOpenChange={setShowOvertimeModal}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Overtime</AlertDialogTitle>
+                        <AlertDialogTitle>Update Overtime</AlertDialogTitle>
                         <AlertDialogDescription>
-                            You have worked for more than 12 hours. Please confirm that this is correct and authorized.
+                            You have exceeded standard hours. Confirm to log this session?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClockOut} className="bg-red-600 hover:bg-red-700">
-                            Confirm Clock Out
+                        <AlertDialogAction onClick={handleClockOut} className="bg-indigo-600">
+                            Confirm
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

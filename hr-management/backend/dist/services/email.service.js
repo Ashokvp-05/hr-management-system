@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendWeeklyReport = exports.sendClockOutReminder = exports.sendWelcomeEmail = exports.sendEmail = void 0;
+exports.sendPasswordResetEmail = exports.sendWeeklyReport = exports.sendClockOutReminder = exports.sendWelcomeEmail = exports.sendEmail = void 0;
 const resend_1 = require("resend");
 const resend = new resend_1.Resend(process.env.RESEND_API_KEY || 're_mock_key');
 const sendEmail = (to, subject, html) => __awaiter(void 0, void 0, void 0, function* () {
@@ -20,7 +20,7 @@ const sendEmail = (to, subject, html) => __awaiter(void 0, void 0, void 0, funct
     }
     try {
         const data = yield resend.emails.send({
-            from: 'HR System <onboarding@resend.dev>', // Update with verified domain in prod
+            from: 'Rudratic HR <onboarding@resend.dev>', // Update with verified domain in prod
             to,
             subject,
             html,
@@ -34,7 +34,7 @@ const sendEmail = (to, subject, html) => __awaiter(void 0, void 0, void 0, funct
 });
 exports.sendEmail = sendEmail;
 const sendWelcomeEmail = (email, name) => __awaiter(void 0, void 0, void 0, function* () {
-    const subject = 'Welcome to HR Management System';
+    const subject = 'Welcome to Rudratic HR';
     const html = `
         <h1>Welcome, ${name}!</h1>
         <p>Your account has been created successfully. Please wait for admin approval to access the dashboard.</p>
@@ -52,10 +52,10 @@ const sendClockOutReminder = (email, name) => __awaiter(void 0, void 0, void 0, 
 });
 exports.sendClockOutReminder = sendClockOutReminder;
 const sendWeeklyReport = (email, stats) => __awaiter(void 0, void 0, void 0, function* () {
-    const subject = `Weekly HR Report - ${new Date().toLocaleDateString()}`;
+    const subject = `Rudratic Weekly Report - ${new Date().toLocaleDateString()}`;
     const html = `
         <div style="font-family: sans-serif; padding: 20px;">
-            <h1 style="color: #2563eb;">Weekly Workforce Summary</h1>
+            <h1 style="color: #2563eb;">Rudratic Workforce Summary</h1>
             <p>Here is the automated summary for the past 7 days:</p>
             <table border="1" cellpadding="10" style="border-collapse: collapse; width: 100%;">
                 <tr style="background: #f8fafc;">
@@ -79,3 +79,20 @@ const sendWeeklyReport = (email, stats) => __awaiter(void 0, void 0, void 0, fun
     return (0, exports.sendEmail)(email, subject, html);
 });
 exports.sendWeeklyReport = sendWeeklyReport;
+const sendPasswordResetEmail = (email, token) => __awaiter(void 0, void 0, void 0, function* () {
+    const subject = 'Password Reset Request - Rudratic HR';
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    const html = `
+        <div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #2563eb;">Password Reset Request</h2>
+            <p>You requested a password reset for your Rudratic HR account.</p>
+            <p>Please click the link below to set a new password. This link will expire in 1 hour.</p>
+            <div style="margin: 20px 0;">
+                <a href="${resetUrl}" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Reset Password</a>
+            </div>
+            <p style="font-size: 12px; color: #64748b;">If you did not request this, please ignore this email.</p>
+        </div>
+    `;
+    return (0, exports.sendEmail)(email, subject, html);
+});
+exports.sendPasswordResetEmail = sendPasswordResetEmail;

@@ -42,7 +42,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.login = exports.register = void 0;
+exports.changePassword = exports.resetPassword = exports.forgotPassword = exports.login = exports.register = void 0;
 const authService = __importStar(require("../services/auth.service"));
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -64,3 +64,36 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.login = login;
+const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        yield authService.requestPasswordReset(req.body.email);
+        res.status(200).json({ message: 'Password reset link sent to your email' });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.forgotPassword = forgotPassword;
+const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { token, newPassword } = req.body;
+        yield authService.resetPassword(token, newPassword);
+        res.status(200).json({ message: 'Password has been reset successfully' });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.resetPassword = resetPassword;
+const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const { currentPassword, newPassword } = req.body;
+        yield authService.changePassword(userId, currentPassword, newPassword);
+        res.status(200).json({ message: 'Password updated successfully' });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.changePassword = changePassword;

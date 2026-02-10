@@ -28,13 +28,13 @@ export const initCronJobs = () => {
                 }
 
                 // Send In-App Notification
-                await notificationService.createNotification(
-                    entry.userId,
-                    'Clock Out Reminder',
-                    'It is 7:00 PM. Please remember to clock out if you have finished for the day.',
-                    NotificationType.INFO, // Assuming INFO exists, or we update schema
-                    { action: 'clock-out' }
-                );
+                await notificationService.createNotification({
+                    userId: entry.userId,
+                    title: 'Clock Out Reminder',
+                    message: 'It is 7:00 PM. Please remember to clock out if you have finished for the day.',
+                    type: NotificationType.INFO,
+                    actionData: { action: 'clock-out' }
+                });
             }
         } catch (error) {
             console.error('[CRON] Error in 7 PM Check:', error);

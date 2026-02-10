@@ -5,9 +5,7 @@ import { authenticate, requireRole } from '../middleware/auth.middleware';
 const router = Router();
 
 router.use(authenticate);
-router.use(requireRole(['ADMIN'])); // All user management requires Admin
-
-router.get('/', userController.getUsers);
-router.put('/:id', userController.updateUser);
+router.get('/', requireRole(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), userController.getUsers);
+router.put('/:id', requireRole(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), userController.updateUser);
 
 export default router;

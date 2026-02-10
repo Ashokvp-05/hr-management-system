@@ -1,19 +1,15 @@
-import { Skeleton } from "@/components/ui/skeleton"
+import { Loader2 } from "lucide-react"
 
-export default function DashboardLoading() {
+export default function Loading() {
     return (
-        <div className="flex-1 space-y-4 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <Skeleton className="h-9 w-[150px]" />
+        <div className="flex h-[calc(100vh-80px)] w-full items-center justify-center flex-col gap-4 bg-slate-50 dark:bg-slate-950/50 backdrop-blur-sm">
+            <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-indigo-500/20 animate-ping" />
+                <Loader2 className="h-12 w-12 animate-spin text-indigo-600 relative z-10" />
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Skeleton className="h-[200px] rounded-xl" />
-                <Skeleton className="h-[200px] rounded-xl" />
-                <Skeleton className="h-[200px] rounded-xl" />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Skeleton className="col-span-4 h-[350px] rounded-xl" />
-                <Skeleton className="col-span-3 h-[350px] rounded-xl" />
+            <div className="flex flex-col items-center gap-1">
+                <p className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-widest">Nexus Intelligence</p>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest animate-pulse">Synchronizing Neural Workspace...</p>
             </div>
         </div>
     )

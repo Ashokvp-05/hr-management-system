@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { useState, useEffect } from "react"
 import { Bell, Info, AlertTriangle, CheckCircle, Clock } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -8,40 +10,47 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSession } from "next-auth/react"
 import { formatDistanceToNow } from "date-fns"
+import { API_BASE_URL } from "@/lib/config"
 
-export default function NotificationBell() {
-    const { data: session } = useSession()
-    const [notifications, setNotifications] = useState<any[]>([])
+interface Notification {
+    id: string;
+    title: string;
+    message: string;
+    type: 'INFO' | 'WARNING' | 'ALERT' | 'SUCCESS';
+    isRead: boolean;
+    createdAt: string;
+}
+
+export default function NotificationBell({ token }: { token: string }) {
+    const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
-
-    const token = (session?.user as any)?.accessToken
-
-    useEffect(() => {
-        if (token) {
-            fetchNotifications()
-            const interval = setInterval(fetchNotifications, 60000) // Poll every min
-            return () => clearInterval(interval)
-        }
-    }, [token])
 
     const fetchNotifications = async () => {
         try {
-            const res = await fetch("http://localhost:4000/api/notifications", {
+            const res = await fetch(`${API_BASE_URL}/notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (res.ok) {
-                const data = await res.json()
+                const data: Notification[] = await res.json()
                 setNotifications(data)
-                setUnreadCount(data.filter((n: any) => !n.isRead).length)
+                setUnreadCount(data.filter(n => !n.isRead).length)
             }
         } catch (e) {
             console.error("Failed to fetch notifications")
         }
     }
 
+    useEffect(() => {
+        if (token) {
+            fetchNotifications()
+            const interval = setInterval(fetchNotifications, 30000) // Poll every 30s
+            return () => clearInterval(interval)
+        }
+    }, [token])
+
     const markAllRead = async () => {
         try {
-            await fetch("http://localhost:4000/api/notifications/read-all", {
+            await fetch(`${API_BASE_URL}/notifications/read-all`, {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${token}` }
             })
@@ -49,6 +58,21 @@ export default function NotificationBell() {
             setUnreadCount(0)
         } catch (e) {
             console.error("Failed to mark all read")
+        }
+    }
+
+    const markSingleRead = async (id: string) => {
+        try {
+            // Optimistic update
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+
+            await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+        } catch (e) {
+            console.error("Failed to mark read")
         }
     }
 
@@ -90,22 +114,25 @@ export default function NotificationBell() {
                             {notifications.map((n) => (
                                 <div
                                     key={n.id}
-                                    className={`p-4 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${!n.isRead ? 'bg-primary/5' : ''}`}
+                                    onClick={() => !n.isRead && markSingleRead(n.id)}
+                                    className={`relative p-4 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${!n.isRead ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
                                 >
                                     <div className="flex gap-3">
-                                        <div className="mt-1">{typeIcons[n.type] || <Info className="h-4 w-4" />}</div>
+                                        <div className="mt-1 shrink-0">{typeIcons[n.type] || <Info className="h-4 w-4" />}</div>
                                         <div className="flex-1 space-y-1">
-                                            <p className="text-sm font-medium leading-none">{n.title}</p>
-                                            <p className="text-xs text-muted-foreground leading-relaxed">{n.message}</p>
-                                            <div className="flex items-center gap-1 pt-1">
-                                                <Clock className="h-3 w-3 text-muted-foreground/50" />
-                                                <span className="text-[10px] text-muted-foreground/50 uppercase">
+                                            <p className={`text-sm leading-none ${!n.isRead ? 'font-bold text-slate-800 dark:text-slate-100' : 'font-medium text-slate-600 dark:text-slate-400'}`}>
+                                                {n.title}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{n.message}</p>
+                                            <div className="flex items-center gap-1 pt-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                <Clock className="h-3 w-3" />
+                                                <span className="text-[10px] uppercase tracking-wide">
                                                     {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                                                 </span>
                                             </div>
                                         </div>
                                         {!n.isRead && (
-                                            <div className="h-2 w-2 rounded-full bg-primary mt-1" />
+                                            <div className="shrink-0 h-2 w-2 rounded-full bg-indigo-600 mt-1 animate-pulse" />
                                         )}
                                     </div>
                                 </div>
@@ -114,9 +141,11 @@ export default function NotificationBell() {
                     )}
                 </ScrollArea>
                 <div className="p-3 border-t text-center">
-                    <Button variant="ghost" size="sm" className="text-xs w-full text-muted-foreground">
-                        View All History
-                    </Button>
+                    <Link href="/notifications" className="w-full">
+                        <Button variant="ghost" size="sm" className="text-xs w-full text-muted-foreground">
+                            View All History
+                        </Button>
+                    </Link>
                 </div>
             </PopoverContent>
         </Popover>

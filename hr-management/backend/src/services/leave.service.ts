@@ -1,5 +1,5 @@
 import prisma from '../config/db';
-import { LeaveType, LeaveStatus } from '@prisma/client';
+import { LeaveType, LeaveStatus, NotificationType } from '@prisma/client';
 
 interface CreateLeaveRequestDTO {
     userId: string;
@@ -27,8 +27,11 @@ export const createRequest = async (data: CreateLeaveRequestDTO) => {
     const daysRequested = Math.ceil((data.endDate.getTime() - data.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     // Simple check based on type
-    if (data.type === LeaveType.SICK && balance.sick < daysRequested) throw new Error(`Insufficient Sick Leave balance. Available: ${balance.sick}`);
-    if (data.type === LeaveType.CASUAL && balance.casual < daysRequested) throw new Error(`Insufficient Casual Leave balance. Available: ${balance.casual}`);
+    if ((data.type === LeaveType.SICK || data.type === LeaveType.MEDICAL) && balance.sick < daysRequested)
+        throw new Error(`Insufficient Medical/Sick Leave balance. Available: ${balance.sick}`);
+
+    if (data.type === LeaveType.CASUAL && balance.casual < daysRequested)
+        throw new Error(`Insufficient Casual Leave balance. Available: ${balance.casual}`);
     if (data.type === LeaveType.EARNED && balance.earned < daysRequested) throw new Error(`Insufficient Earned Leave balance. Available: ${balance.earned}`);
 
     return prisma.leaveRequest.create({
@@ -49,9 +52,10 @@ export const getUserRequests = async (userId: string) => {
     });
 };
 
-export const getAllRequests = async () => {
+export const getAllRequests = async (departmentId?: string) => {
     return prisma.leaveRequest.findMany({
-        include: { user: { select: { name: true, email: true } } },
+        where: departmentId ? { user: { department: departmentId } } : undefined,
+        include: { user: { select: { name: true, email: true, department: true } } },
         orderBy: { createdAt: 'desc' }
     });
 };
@@ -86,7 +90,7 @@ export const updateStatus = async (requestId: string, status: LeaveStatus, admin
             if (!balance) throw new Error("Balance record not found");
 
             const updateData: any = {};
-            if (request.type === LeaveType.SICK) {
+            if (request.type === LeaveType.SICK || request.type === LeaveType.MEDICAL) {
                 if (balance.sick < days) throw new Error("Insufficient Sick Leave balance during approval");
                 updateData.sick = { decrement: days };
             } else if (request.type === LeaveType.CASUAL) {
@@ -105,9 +109,21 @@ export const updateStatus = async (requestId: string, status: LeaveStatus, admin
             }
         }
 
-        return tx.leaveRequest.update({
+        const updatedRequest = await tx.leaveRequest.update({
             where: { id: requestId },
             data: { status, approvedBy: adminId, rejectionReason: reason }
         });
+
+        // Notify the user about the status change
+        await prisma.notification.create({
+            data: {
+                userId: request.userId,
+                title: `Leave Request ${status}`,
+                message: `Your leave request from ${request.startDate.toLocaleDateString()} to ${request.endDate.toLocaleDateString()} has been ${status.toLowerCase()}.${reason ? ` Reason: ${reason}` : ''}`,
+                type: status === LeaveStatus.APPROVED ? NotificationType.SUCCESS : NotificationType.ALERT
+            }
+        });
+
+        return updatedRequest;
     });
 };

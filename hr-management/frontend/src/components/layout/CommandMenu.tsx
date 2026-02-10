@@ -11,9 +11,7 @@ import {
     Search,
     Settings,
     LogOut,
-    Database,
     Clock,
-    HelpCircle,
     FileText
 } from "lucide-react"
 
@@ -51,127 +49,99 @@ export function CommandMenu() {
     const roleName = typeof role === 'object' ? role.name : role
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-lg bg-popover text-popover-foreground border shadow-2xl rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
-                <Command className="flex flex-col h-full">
-                    <div className="flex items-center border-b px-3">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-xl overflow-hidden animate-in slide-in-from-top-4 duration-300">
+                <Command className="flex flex-col h-full bg-transparent">
+                    <div className="flex items-center border-b border-border px-4 py-3">
+                        <Search className="mr-3 h-4 w-4 shrink-0 text-slate-500" />
                         <Command.Input
-                            placeholder="Search actions or pages... (Type 'L' for Leave)"
-                            className="flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="Type a command or search..."
+                            className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
                             autoFocus
                         />
+                        <div className="ml-2 flex items-center gap-1">
+                            <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-medium">ESC</span>
+                        </div>
                     </div>
-                    <Command.List className="max-h-[400px] overflow-y-auto overflow-x-hidden p-2">
-                        <Command.Empty className="py-6 text-center text-sm">No results found.</Command.Empty>
+                    <Command.List className="max-h-[300px] overflow-y-auto overflow-x-hidden p-2 space-y-1">
+                        <Command.Empty className="py-6 text-center text-sm text-muted-foreground">No results found.</Command.Empty>
 
-                        <Command.Group heading="Navigation" className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <Command.Group heading="Navigation" className="px-2 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                             <Command.Item
                                 onSelect={() => runCommand(() => router.push("/dashboard"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-900/20 aria-selected:text-indigo-600 dark:aria-selected:text-indigo-400 transition-colors"
                             >
                                 <LayoutDashboard className="h-4 w-4" />
                                 <span>Dashboard</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">D</span>
-                                </kbd>
+                                <span className="ml-auto text-xs text-slate-400">D</span>
                             </Command.Item>
 
                             <Command.Item
                                 onSelect={() => runCommand(() => router.push("/attendance"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-900/20 aria-selected:text-indigo-600 dark:aria-selected:text-indigo-400 transition-colors"
                             >
                                 <Clock className="h-4 w-4" />
-                                <span>Attendance History</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">A</span>
-                                </kbd>
+                                <span>Attendance</span>
+                                <span className="ml-auto text-xs text-slate-400">A</span>
                             </Command.Item>
 
                             <Command.Item
                                 onSelect={() => runCommand(() => router.push("/leave"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-900/20 aria-selected:text-indigo-600 dark:aria-selected:text-indigo-400 transition-colors"
                             >
                                 <Calendar className="h-4 w-4" />
-                                <span>Apply for Leave</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">L</span>
-                                </kbd>
+                                <span>Leave Management</span>
+                                <span className="ml-auto text-xs text-slate-400">L</span>
                             </Command.Item>
 
                             <Command.Item
                                 onSelect={() => runCommand(() => router.push("/reports"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-900/20 aria-selected:text-indigo-600 dark:aria-selected:text-indigo-400 transition-colors"
                             >
                                 <FileText className="h-4 w-4" />
-                                <span>My Reports</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">R</span>
-                                </kbd>
+                                <span>Reports</span>
+                                <span className="ml-auto text-xs text-slate-400">R</span>
                             </Command.Item>
 
                             <Command.Item
                                 onSelect={() => runCommand(() => router.push("/profile"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-900/20 aria-selected:text-indigo-600 dark:aria-selected:text-indigo-400 transition-colors"
                             >
                                 <User className="h-4 w-4" />
-                                <span>Profile</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">P</span>
-                                </kbd>
+                                <span>My Profile</span>
+                                <span className="ml-auto text-xs text-slate-400">P</span>
                             </Command.Item>
 
                             <Command.Item
                                 onSelect={() => runCommand(() => router.push("/settings"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 rounded-lg cursor-pointer aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-900/20 aria-selected:text-indigo-600 dark:aria-selected:text-indigo-400 transition-colors"
                             >
                                 <Settings className="h-4 w-4" />
                                 <span>Settings</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">S</span>
-                                </kbd>
+                                <span className="ml-auto text-xs text-slate-400">S</span>
                             </Command.Item>
-
-                            <Command.Item
-                                onSelect={() => runCommand(() => router.push("/help"))}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
-                            >
-                                <HelpCircle className="h-4 w-4" />
-                                <span>Help & Support</span>
-                                <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">H</span>
-                                </kbd>
-                            </Command.Item>
-
-                            {roleName === 'ADMIN' && (
-                                <Command.Item
-                                    onSelect={() => runCommand(() => router.push("/admin/database"))}
-                                    className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
-                                >
-                                    <Database className="h-4 w-4" />
-                                    <span>Database Explorer</span>
-                                    <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                        <span className="text-xs">B</span>
-                                    </kbd>
-                                </Command.Item>
-                            )}
                         </Command.Group>
-                        <Command.Separator className="h-px bg-border mx-2 my-2" />
-                        <Command.Group heading="Actions" className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+
+                        <Command.Separator className="h-px bg-slate-100 dark:bg-slate-800 mx-2 my-2" />
+
+                        <Command.Group heading="Account" className="px-2 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                             <Command.Item
                                 onSelect={() => runCommand(() => window.location.href = "/api/auth/signout")}
-                                className="flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 dark:text-rose-400 rounded-lg cursor-pointer aria-selected:bg-rose-50 dark:aria-selected:bg-rose-900/20 transition-colors"
                             >
                                 <LogOut className="h-4 w-4" />
                                 <span>Log Out</span>
                             </Command.Item>
                         </Command.Group>
                     </Command.List>
+
+                    <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500">
+                        <div className="flex gap-3">
+                            <span>Use arrows to navigate</span>
+                            <span>Enter to select</span>
+                        </div>
+                    </div>
                 </Command>
-                <div className="p-3 border-t bg-muted/30 text-[10px] text-muted-foreground flex justify-between">
-                    <span>Press ESC to close</span>
-                    <span>Tip: Use ↑↓ and Enter</span>
-                </div>
             </div>
             <div className="absolute inset-0 -z-10" onClick={() => setOpen(false)} />
         </div>

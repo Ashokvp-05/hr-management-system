@@ -51,3 +51,23 @@ export const updateAvatar = async (req: Request, res: Response) => {
         res.status(400).json({ error: error.message });
     }
 };
+
+export const deleteAccount = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.id;
+        await userService.deleteUser(userId);
+        res.json({ message: 'Account deleted successfully' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const exportData = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.id;
+        const data = await userService.exportPersonalData(userId);
+        res.json(data);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

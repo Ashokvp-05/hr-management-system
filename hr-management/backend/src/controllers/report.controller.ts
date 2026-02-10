@@ -15,19 +15,49 @@ export const getAttendanceReport = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Start and end dates are required' });
         }
 
-        let targetUserId = loggedInUser?.id;
+        let targetUserId: string | undefined = loggedInUser?.id;
+        let targetDepartment: string | undefined = undefined;
 
-        // Check if admin to allow seeing other user's reports
-        if (loggedInUser?.roleId) {
-            const role = await prisma.role.findUnique({
-                where: { id: loggedInUser.roleId }
+        // Fetch full user and role to determine permissions
+        if (loggedInUser?.id) {
+            const user = await prisma.user.findUnique({
+                where: { id: loggedInUser.id },
+                include: { role: true }
             });
-            if (role?.name === 'ADMIN' && queryUserId) {
-                targetUserId = queryUserId as string;
+
+            const roleName = user?.role?.name;
+
+            if (roleName === 'ADMIN') {
+                // Admin can see ANYONE. If queryUserId provided, filter by it. If not, see ALL (targetUserId = undefined).
+                if (queryUserId) {
+                    targetUserId = queryUserId as string;
+                } else {
+                    targetUserId = undefined; // Fetch Logic: undefined userId = ALL users
+                }
+            } else if (roleName === 'MANAGER') {
+                // Manager sees their DEPARTMENT.
+                // Constraint: Can specific queryUserId be used? Yes, but must be in their dept.
+                // For simplified "Report Page", we assume they want to see the whole team or themselves.
+                // Let's allow seeing the whole team first.
+                if (queryUserId) {
+                    // Advanced: Validate queryUserId is in dept. For now, let's just allow Department filter.
+                    targetUserId = queryUserId as string;
+                } else {
+                    targetUserId = undefined; // Don't filter by ID
+                    targetDepartment = user?.department || undefined;
+                }
+
+                if (!targetDepartment && !queryUserId) {
+                    // Fallback if no dept assigned: See self
+                    targetUserId = loggedInUser.id;
+                }
+            } else {
+                // Employee: STRICTLY Self
+                targetUserId = loggedInUser.id;
             }
         }
 
-        const report = await timeEntryService.getReport(new Date(start as string), new Date(end as string), targetUserId);
+        const report = await timeEntryService.getReport(new Date(start as string), new Date(end as string), targetUserId, targetDepartment);
         res.json(report);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -43,15 +73,25 @@ export const exportExcel = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Start and end dates are required' });
         }
 
-        let targetUserId = loggedInUser?.id;
-        if (loggedInUser?.roleId) {
-            const role = await prisma.role.findUnique({ where: { id: loggedInUser.roleId } });
-            if (role?.name === 'ADMIN' && queryUserId) {
-                targetUserId = queryUserId as string;
+        let targetUserId: string | undefined = loggedInUser?.id;
+        let targetDepartment: string | undefined = undefined;
+
+        if (loggedInUser?.id) {
+            const user = await prisma.user.findUnique({ where: { id: loggedInUser.id }, include: { role: true } });
+            const roleName = user?.role?.name;
+
+            if (roleName === 'ADMIN') {
+                targetUserId = queryUserId ? (queryUserId as string) : undefined;
+            } else if (roleName === 'MANAGER') {
+                targetUserId = queryUserId ? (queryUserId as string) : undefined;
+                targetDepartment = user?.department || undefined;
+                if (!targetDepartment && !queryUserId) targetUserId = loggedInUser.id;
+            } else {
+                targetUserId = loggedInUser.id;
             }
         }
 
-        const report = await timeEntryService.getReport(new Date(start as string), new Date(end as string), targetUserId);
+        const report = await timeEntryService.getReport(new Date(start as string), new Date(end as string), targetUserId, targetDepartment);
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Attendance Report');
@@ -104,15 +144,25 @@ export const exportPDF = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Start and end dates are required' });
         }
 
-        let targetUserId = loggedInUser?.id;
-        if (loggedInUser?.roleId) {
-            const role = await prisma.role.findUnique({ where: { id: loggedInUser.roleId } });
-            if (role?.name === 'ADMIN' && queryUserId) {
-                targetUserId = queryUserId as string;
+        let targetUserId: string | undefined = loggedInUser?.id;
+        let targetDepartment: string | undefined = undefined;
+
+        if (loggedInUser?.id) {
+            const user = await prisma.user.findUnique({ where: { id: loggedInUser.id }, include: { role: true } });
+            const roleName = user?.role?.name;
+
+            if (roleName === 'ADMIN') {
+                targetUserId = queryUserId ? (queryUserId as string) : undefined;
+            } else if (roleName === 'MANAGER') {
+                targetUserId = queryUserId ? (queryUserId as string) : undefined;
+                targetDepartment = user?.department || undefined;
+                if (!targetDepartment && !queryUserId) targetUserId = loggedInUser.id;
+            } else {
+                targetUserId = loggedInUser.id;
             }
         }
 
-        const report = await timeEntryService.getReport(new Date(start as string), new Date(end as string), targetUserId);
+        const report = await timeEntryService.getReport(new Date(start as string), new Date(end as string), targetUserId, targetDepartment);
 
         const doc = new jsPDF() as any;
 

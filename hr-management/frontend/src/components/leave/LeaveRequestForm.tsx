@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { useToast } from "@/components/ui/use-toast"
+import { API_BASE_URL } from "@/lib/config"
 
 const leaveSchema = z.object({
     type: z.enum(["CASUAL", "MEDICAL", "OTHER", "EARNED", "UNPAID"]),
@@ -44,7 +45,7 @@ const leaveSchema = z.object({
     path: ["endDate"],
 })
 
-export default function LeaveRequestForm({ token }: { token: string }) {
+export default function LeaveRequestForm({ token, onSuccess }: { token: string, onSuccess?: () => void }) {
     const [loading, setLoading] = useState(false)
     const [balance, setBalance] = useState<any>(null)
     const { toast } = useToast()
@@ -60,13 +61,22 @@ export default function LeaveRequestForm({ token }: { token: string }) {
 
     useEffect(() => {
         const fetchBalance = async () => {
+            console.log("Fetching Leave Balance for form...");
             try {
-                const res = await fetch("http://localhost:4000/api/leaves/balance", {
+                const res = await fetch(`${API_BASE_URL}/leaves/balance`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
-                if (res.ok) setBalance(await res.json())
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log("Balance Data Received:", data);
+                    setBalance(data);
+                } else {
+                    console.error("Balance fetch failed:", res.status);
+                    setBalance({ sick: 0, casual: 0, earned: 0 }); // Fallback
+                }
             } catch (e) {
-                console.error("Failed to fetch balance")
+                console.error("Failed to fetch balance", e);
+                setBalance({ sick: 0, casual: 0, earned: 0 }); // Fallback
             }
         }
         if (token) fetchBalance()
@@ -74,8 +84,9 @@ export default function LeaveRequestForm({ token }: { token: string }) {
 
     async function onSubmit(data: z.infer<typeof leaveSchema>) {
         setLoading(true)
+        console.log("Submitting Leave Request:", data);
         try {
-            const res = await fetch("http://localhost:4000/api/leaves/request", {
+            const res = await fetch(`${API_BASE_URL}/leaves/request`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -91,6 +102,7 @@ export default function LeaveRequestForm({ token }: { token: string }) {
 
             toast({ title: "Success", description: "Leave request submitted successfully" })
             form.reset()
+            if (onSuccess) onSuccess()
         } catch (error: any) {
             toast({ title: "Submission Failed", description: error.message, variant: "destructive" })
         } finally {

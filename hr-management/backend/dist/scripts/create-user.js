@@ -18,20 +18,68 @@ function main() {
     return __awaiter(this, void 0, void 0, function* () {
         const password = 'password123';
         const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
+        // --------------------------------------------------------
+        // 1. SETUP ROLES
+        // --------------------------------------------------------
+        // Admin Role
+        let adminRole = yield db_1.default.role.findUnique({ where: { name: 'ADMIN' } });
+        if (!adminRole) {
+            console.log('Creating ADMIN role...');
+            adminRole = yield db_1.default.role.create({
+                data: { name: 'ADMIN', permissions: { all: true } }
+            });
+        }
+        // Employee Role
+        let employeeRole = yield db_1.default.role.findUnique({ where: { name: 'EMPLOYEE' } });
+        if (!employeeRole) {
+            console.log('Creating EMPLOYEE role...');
+            employeeRole = yield db_1.default.role.create({
+                data: { name: 'EMPLOYEE', permissions: { view_self: true, apply_leave: true } }
+            });
+        }
+        // --------------------------------------------------------
+        // 2. CREATE USERS
+        // --------------------------------------------------------
+        // --- ADMIN USER ---
+        const adminEmail = 'admin@rudratic.com';
+        const adminPass = 'admin123';
+        const hashedAdminPass = yield bcryptjs_1.default.hash(adminPass, 10);
         yield db_1.default.user.upsert({
-            where: { email: 'ashokvp04@gmail.com' },
+            where: { email: adminEmail },
             update: {
-                password: hashedPassword,
-                status: 'ACTIVE'
+                password: hashedAdminPass,
+                status: 'ACTIVE',
+                role: { connect: { id: adminRole.id } }
             },
             create: {
-                email: 'ashokvp04@gmail.com',
-                name: 'Ashok V P',
-                password: hashedPassword,
-                status: 'ACTIVE'
+                email: adminEmail,
+                name: 'System Admin',
+                password: hashedAdminPass,
+                status: 'ACTIVE',
+                role: { connect: { id: adminRole.id } }
             }
         });
-        console.log('User created/updated successfully with password:', password);
+        console.log(`✅ Admin Created: ${adminEmail} / ${adminPass}`);
+        // --- EMPLOYEE USER ---
+        const userEmail = 'employee@rudratic.com';
+        const userPass = 'user123';
+        const hashedUserPass = yield bcryptjs_1.default.hash(userPass, 10);
+        yield db_1.default.user.upsert({
+            where: { email: userEmail },
+            update: {
+                password: hashedUserPass,
+                status: 'ACTIVE',
+                role: { connect: { id: employeeRole.id } }
+            },
+            create: {
+                email: userEmail,
+                name: 'John Employee',
+                password: hashedUserPass,
+                status: 'ACTIVE',
+                role: { connect: { id: employeeRole.id } }
+            }
+        });
+        console.log(`✅ Employee Created: ${userEmail} / ${userPass}`);
     });
 }
 main()

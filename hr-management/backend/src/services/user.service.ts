@@ -63,3 +63,26 @@ export const updateAvatar = async (id: string, avatarUrl: string) => {
         data: { avatarUrl }
     });
 };
+
+export const deleteUser = async (id: string) => {
+    return prisma.user.delete({
+        where: { id }
+    });
+};
+
+export const exportPersonalData = async (id: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id },
+        include: {
+            timeEntries: true,
+            leaveRequests: true,
+            notifications: true,
+            role: true
+        }
+    });
+
+    if (!user) throw new Error('User not found');
+
+    const { password, resetToken, resetTokenExpiry, ...safeData } = user as any;
+    return safeData;
+};

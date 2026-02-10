@@ -41,10 +41,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncToSheets = exports.getStats = exports.rejectUser = exports.approveUser = exports.getPendingUsers = void 0;
+exports.getRoles = exports.syncToSheets = exports.getOverview = exports.getStats = exports.rejectUser = exports.approveUser = exports.getPendingUsers = void 0;
 const adminService = __importStar(require("../services/admin.service"));
 const googleSheets = __importStar(require("../services/googleSheets.service"));
+const db_1 = __importDefault(require("../config/db"));
 const getPendingUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const users = yield adminService.getPendingUsers();
@@ -56,9 +60,12 @@ const getPendingUsers = (req, res) => __awaiter(void 0, void 0, void 0, function
 });
 exports.getPendingUsers = getPendingUsers;
 const approveUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { id } = req.params;
-        const user = yield adminService.approveUser(id);
+        // @ts-ignore - req.user is populated by authenticate middleware
+        const adminId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        const user = yield adminService.approveUser(id, adminId);
         res.json({ message: 'User approved', user });
     }
     catch (error) {
@@ -67,9 +74,12 @@ const approveUser = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 });
 exports.approveUser = approveUser;
 const rejectUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { id } = req.params;
-        const user = yield adminService.rejectUser(id);
+        // @ts-ignore
+        const adminId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        const user = yield adminService.rejectUser(id, adminId);
         res.json({ message: 'User rejected', user });
     }
     catch (error) {
@@ -87,6 +97,16 @@ const getStats = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.getStats = getStats;
+const getOverview = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const overview = yield adminService.getDashboardOverview();
+        res.json(overview);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.getOverview = getOverview;
 const syncToSheets = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { spreadsheetId } = req.body;
@@ -101,3 +121,13 @@ const syncToSheets = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     }
 });
 exports.syncToSheets = syncToSheets;
+const getRoles = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const roles = yield db_1.default.role.findMany();
+        res.json(roles);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.getRoles = getRoles;
