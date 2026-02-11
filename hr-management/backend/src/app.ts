@@ -89,4 +89,16 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/kudos', kudosRoutes);
 app.use('/api/ai', aiRoutes);
 
+// 404 Handler - must be after all routes
+app.use((req, res) => {
+    res.status(404).json({
+        status: 'error',
+        message: `Route ${req.method} ${req.url} not found`
+    });
+});
+
+// Global error handler - must be last
+import { errorHandler } from './middleware/error.middleware';
+app.use(errorHandler);
+
 export default app;
