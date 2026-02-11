@@ -9,13 +9,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 // Lazy load non-critical components for better performance
-const CommandMenu = dynamic(() => import("@/components/layout/CommandMenu").then(mod => ({ default: mod.CommandMenu })), {
-  ssr: false,
-});
+const CommandMenu = dynamic(() => import("@/components/layout/CommandMenu").then(mod => ({ default: mod.CommandMenu })));
 
-const FloatingTicketButton = dynamic(() => import("@/components/FloatingTicketButton"), {
-  ssr: false,
-});
+const FloatingTicketButton = dynamic(() => import("@/components/FloatingTicketButton"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
