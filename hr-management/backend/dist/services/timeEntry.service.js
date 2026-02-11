@@ -106,10 +106,11 @@ const getSummary = (userId) => __awaiter(void 0, void 0, void 0, function* () {
     };
 });
 exports.getSummary = getSummary;
-const getReport = (startDate, endDate, userId) => __awaiter(void 0, void 0, void 0, function* () {
+const getReport = (startDate, endDate, userId, departmentId) => __awaiter(void 0, void 0, void 0, function* () {
     return db_1.default.timeEntry.findMany({
         where: {
             userId: userId ? userId : undefined,
+            user: departmentId ? { department: departmentId } : undefined,
             clockIn: {
                 gte: startDate,
                 lte: endDate

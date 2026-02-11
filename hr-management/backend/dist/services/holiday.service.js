@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getHolidays = exports.syncHolidays = void 0;
 const db_1 = __importDefault(require("../config/db"));
+const cache_1 = __importDefault(require("../config/cache"));
 const HOLIDAYS_2026 = [
     { name: 'Makar Sankranti', date: '2026-01-14' },
     { name: 'Republic Day', date: '2026-01-26', isNational: true },
@@ -55,13 +56,20 @@ const syncHolidays = (year) => __awaiter(void 0, void 0, void 0, function* () {
         });
         createdCount++;
     }
+    cache_1.default.del(`holidays_${year}`);
     return { count: createdCount, message: `Synced ${createdCount} holidays for ${year}` };
 });
 exports.syncHolidays = syncHolidays;
 const getHolidays = (year) => __awaiter(void 0, void 0, void 0, function* () {
-    return db_1.default.holiday.findMany({
+    const key = `holidays_${year}`;
+    const cached = cache_1.default.get(key);
+    if (cached)
+        return cached;
+    const holidays = yield db_1.default.holiday.findMany({
         where: { year },
         orderBy: { date: 'asc' }
     });
+    cache_1.default.set(key, holidays, 86400); // 24 hours
+    return holidays;
 });
 exports.getHolidays = getHolidays;

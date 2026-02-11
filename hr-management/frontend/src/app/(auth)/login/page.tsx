@@ -1,19 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { signIn, useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight, Shield, Sparkles } from "lucide-react"
+import { Loader2, Eye, EyeOff, Mail, Lock, Shield, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { getDashboardByRole } from "@/lib/role-redirect"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Building2, User } from "lucide-react"
 
 export default function LoginPage() {
     const router = useRouter()

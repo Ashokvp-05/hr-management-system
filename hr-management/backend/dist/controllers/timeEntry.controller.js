@@ -41,6 +41,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAllActiveUsers = exports.getSummary = exports.getHistory = exports.clockOut = exports.clockIn = exports.getActive = void 0;
 const timeEntryService = __importStar(require("../services/timeEntry.service"));
@@ -109,13 +112,19 @@ const getHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.getHistory = getHistory;
+const cache_1 = __importDefault(require("../config/cache"));
 const getSummary = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
+        const cacheKey = `summary_${userId}`;
+        const cached = cache_1.default.get(cacheKey);
+        if (cached)
+            return res.json(cached);
         const summary = yield timeEntryService.getSummary(userId);
+        cache_1.default.set(cacheKey, summary, 300); // Cache for 5 mins
         res.json(summary);
     }
     catch (error) {

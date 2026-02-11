@@ -74,13 +74,20 @@ const requestRegistration = (data) => __awaiter(void 0, void 0, void 0, function
         throw new Error('User already exists');
     }
     const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
+    let finalRoleId = roleId;
+    if (!finalRoleId) {
+        const employeeRole = yield db_1.default.role.findUnique({
+            where: { name: 'EMPLOYEE' }
+        });
+        finalRoleId = employeeRole === null || employeeRole === void 0 ? void 0 : employeeRole.id;
+    }
     const user = yield db_1.default.user.create({
         data: {
             email,
             name,
             password: hashedPassword,
             status: client_1.UserStatus.ACTIVE,
-            roleId: roleId || undefined,
+            roleId: finalRoleId,
             department,
             designation
         },
@@ -89,7 +96,7 @@ const requestRegistration = (data) => __awaiter(void 0, void 0, void 0, function
 });
 exports.requestRegistration = requestRegistration;
 const verifyCredentials = (data) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b;
     const { email, password } = loginSchema.parse(data);
     const user = yield db_1.default.user.findUnique({
         where: { email },
@@ -119,6 +126,7 @@ const verifyCredentials = (data) => __awaiter(void 0, void 0, void 0, function* 
         id: user.id,
         email: user.email,
         roleId: user.roleId,
+        role: (_a = user.role) === null || _a === void 0 ? void 0 : _a.name,
         status: user.status
     }, process.env.JWT_SECRET || 'super-secret-key', { expiresIn: '1d' });
     // Return user info sans password
@@ -129,7 +137,7 @@ const verifyCredentials = (data) => __awaiter(void 0, void 0, void 0, function* 
             email: user.email,
             name: user.name,
             roleId: user.roleId,
-            role: (_a = user.role) === null || _a === void 0 ? void 0 : _a.name,
+            role: (_b = user.role) === null || _b === void 0 ? void 0 : _b.name,
             status: user.status
         }
     };

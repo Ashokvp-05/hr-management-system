@@ -42,7 +42,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateAvatar = exports.updateProfile = exports.getCurrentUser = exports.updateUser = exports.getUsers = void 0;
+exports.exportData = exports.deleteAccount = exports.updateAvatar = exports.updateProfile = exports.getCurrentUser = exports.updateUser = exports.getUsers = void 0;
 const userService = __importStar(require("../services/user.service"));
 const getUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -100,3 +100,25 @@ const updateAvatar = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     }
 });
 exports.updateAvatar = updateAvatar;
+const deleteAccount = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        yield userService.deleteUser(userId);
+        res.json({ message: 'Account deleted successfully' });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.deleteAccount = deleteAccount;
+const exportData = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const data = yield userService.exportPersonalData(userId);
+        res.json(data);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.exportData = exportData;

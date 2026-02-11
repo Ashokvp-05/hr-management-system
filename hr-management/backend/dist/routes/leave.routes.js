@@ -42,6 +42,6 @@ router.post('/request', leaveController.createRequest);
 router.get('/my-requests', leaveController.getMyRequests);
 router.get('/balance', leaveController.getBalance);
 router.get('/all', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), leaveController.getAllRequests);
-router.put('/:id/approve', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), leaveController.approveRequest);
-router.put('/:id/reject', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), leaveController.rejectRequest);
+router.put('/:id/approve', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), leaveController.approveRequest);
+router.put('/:id/reject', (0, auth_middleware_1.requireRole)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), leaveController.rejectRequest);
 exports.default = router;

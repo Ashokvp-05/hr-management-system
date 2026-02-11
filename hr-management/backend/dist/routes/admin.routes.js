@@ -44,6 +44,7 @@ router.get('/pending-users', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_A
 router.get('/stats', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getStats);
 router.get('/overview', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN', 'VIEWER_ADMIN', 'MANAGER']), adminController.getOverview);
 router.get('/roles', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), adminController.getRoles);
+router.get('/audit-logs', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'MANAGER']), adminController.getAuditLogs);
 // Write Routes (Manager Restricted)
 router.post('/sync/sheets', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.syncToSheets);
 router.put('/users/:id/approve', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.approveUser);

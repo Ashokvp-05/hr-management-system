@@ -4,8 +4,8 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-    const hashedPassword = await bcrypt.hash('Rudratic@Admin#2026', 10);
-    const employeePassword = await bcrypt.hash('Rudratic@User#2026', 10);
+    const hashedPassword = await bcrypt.hash('Admin@123', 10);
+    const employeePassword = await bcrypt.hash('Employee@123', 10);
 
     // Create Roles
     const adminRole = await prisma.role.upsert({
@@ -28,13 +28,13 @@ async function main() {
 
     // Create Users
     const admin = await prisma.user.upsert({
-        where: { email: 'admin@rudratic.com' },
+        where: { email: 'admin@hrms.com' },
         update: {
             password: hashedPassword, // Ensure password is set if user exists
             roleId: adminRole.id
         },
         create: {
-            email: 'admin@rudratic.com',
+            email: 'admin@hrms.com',
             name: 'System Admin',
             password: hashedPassword,
             roleId: adminRole.id,
@@ -45,13 +45,13 @@ async function main() {
     });
 
     const employee = await prisma.user.upsert({
-        where: { email: 'employee@rudratic.com' },
+        where: { email: 'employee@hrms.com' },
         update: {
             password: employeePassword, // Ensure password is set if user exists
             roleId: employeeRole.id
         },
         create: {
-            email: 'employee@rudratic.com',
+            email: 'employee@hrms.com',
             name: 'John Doe',
             password: employeePassword,
             roleId: employeeRole.id,
@@ -62,7 +62,7 @@ async function main() {
     });
 
     // Create Manager Role and User
-    const managerPassword = await bcrypt.hash('Rudratic@Mgr#2026', 10);
+    const managerPassword = await bcrypt.hash('Manager@123', 10);
 
     const managerRole = await prisma.role.upsert({
         where: { name: 'MANAGER' },
@@ -74,13 +74,13 @@ async function main() {
     });
 
     const manager = await prisma.user.upsert({
-        where: { email: 'manager@rudratic.com' },
+        where: { email: 'manager@hrms.com' },
         update: {
             password: managerPassword,
             roleId: managerRole.id
         },
         create: {
-            email: 'manager@rudratic.com',
+            email: 'manager@hrms.com',
             name: 'Sarah Manager',
             password: managerPassword,
             roleId: managerRole.id,

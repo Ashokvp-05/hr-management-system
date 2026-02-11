@@ -86,30 +86,34 @@ const getDatabaseStats = () => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.getDatabaseStats = getDatabaseStats;
 const getDashboardOverview = () => __awaiter(void 0, void 0, void 0, function* () {
-    // 1. Total Active Users
-    const totalActiveUsers = yield db_1.default.user.count({
-        where: { status: 'ACTIVE' }
-    });
-    // 2. Currently Clocked In & Breakdown
-    const activeSessions = yield db_1.default.timeEntry.findMany({
-        where: {
-            status: 'ACTIVE',
-            clockOut: null
-        },
-        select: { clockType: true, clockIn: true, user: { select: { name: true } } }
-    });
+    const now = new Date();
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+    // Run all database queries in parallel for maximum speed
+    const [totalActiveUsers, activeSessions, pendingLeaves, pendingUsers, recentActivity, incompleteProfiles] = yield Promise.all([
+        db_1.default.user.count({ where: { status: 'ACTIVE' } }),
+        db_1.default.timeEntry.findMany({
+            where: { status: 'ACTIVE', clockOut: null },
+            select: { clockType: true, clockIn: true, user: { select: { name: true } } }
+        }),
+        db_1.default.leaveRequest.count({ where: { status: 'PENDING' } }),
+        db_1.default.user.count({ where: { status: client_1.UserStatus.PENDING } }),
+        db_1.default.auditLog.findMany({
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+        }).catch(() => []),
+        db_1.default.user.count({
+            where: {
+                OR: [{ phone: null }, { designation: null }, { department: null }],
+                status: 'ACTIVE'
+            }
+        })
+    ]);
     const clockedInCount = activeSessions.length;
     const remoteCount = activeSessions.filter(s => s.clockType === 'REMOTE').length;
     const officeCount = activeSessions.filter(s => s.clockType === 'IN_OFFICE').length;
-    // 3. Pending Approvals
-    const pendingLeaves = yield db_1.default.leaveRequest.count({ where: { status: 'PENDING' } });
-    const pendingUsers = yield db_1.default.user.count({ where: { status: client_1.UserStatus.PENDING } });
-    // 4. Attendance Rate
     const attendanceRate = totalActiveUsers > 0 ? (clockedInCount / totalActiveUsers) * 100 : 0;
-    // 5. System Alerts (Logic: Active sessions > 12h)
+    // Process alerts
     const alerts = [];
-    const now = new Date();
-    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
     const longRunningSessions = activeSessions.filter(s => new Date(s.clockIn) < twelveHoursAgo);
     if (longRunningSessions.length > 0) {
         alerts.push({
@@ -121,12 +125,6 @@ const getDashboardOverview = () => __awaiter(void 0, void 0, void 0, function* (
     if (attendanceRate < 50 && totalActiveUsers > 5) {
         alerts.push({ type: 'info', message: 'Low attendance today (<50%)' });
     }
-    // 6. Recent Audit Logs
-    const recentActivity = yield db_1.default.auditLog.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-    }).catch(() => []); // Fail gracefully if table doesn't exist yet
-    // 7. Remote Users Detail
     const remoteUsers = activeSessions
         .filter(s => s.clockType === 'REMOTE')
         .map(s => {
@@ -134,19 +132,8 @@ const getDashboardOverview = () => __awaiter(void 0, void 0, void 0, function* (
         return ({
             name: s.user.name,
             clockIn: s.clockIn,
-            location: ((_a = s.location) === null || _a === void 0 ? void 0 : _a.city) || "Unknown" // Assuming location JSON has city
+            location: ((_a = s.location) === null || _a === void 0 ? void 0 : _a.city) || "Unknown"
         });
-    });
-    // 8. Compliance Stats
-    const incompleteProfiles = yield db_1.default.user.count({
-        where: {
-            OR: [
-                { phone: null },
-                { designation: null },
-                { department: null }
-            ],
-            status: 'ACTIVE'
-        }
     });
     return {
         totalActiveUsers,

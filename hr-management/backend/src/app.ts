@@ -9,12 +9,36 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(helmet());
-app.use(compression());
+// Optimized Middleware
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production'
+        ? process.env.FRONTEND_URL
+        : 'http://localhost:3000',
+    credentials: true,
+    maxAge: 86400, // Cache preflight for 24 hours
+}));
+
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
+app.use(compression({
+    level: 6, // Balance between compression ratio and speed
+    threshold: 1024, // Only compress responses > 1KB
+}));
+
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cache control for static responses
+app.use((req, res, next) => {
+    // Set cache headers for specific routes
+    if (req.path.startsWith('/api/holidays') || req.path.startsWith('/api/announcements')) {
+        res.set('Cache-Control', 'public, max-age=300'); // 5 minutes
+    }
+    next();
+});
 
 // Health Check
 app.get('/', (req, res) => {

@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateAvatar = exports.updateProfile = exports.getUserById = exports.updateUser = exports.getAllUsers = void 0;
+exports.exportPersonalData = exports.deleteUser = exports.updateAvatar = exports.updateProfile = exports.getUserById = exports.updateUser = exports.getAllUsers = void 0;
 const db_1 = __importDefault(require("../config/db"));
 const getAllUsers = () => __awaiter(void 0, void 0, void 0, function* () {
     return db_1.default.user.findMany({
@@ -89,3 +89,25 @@ const updateAvatar = (id, avatarUrl) => __awaiter(void 0, void 0, void 0, functi
     });
 });
 exports.updateAvatar = updateAvatar;
+const deleteUser = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    return db_1.default.user.delete({
+        where: { id }
+    });
+});
+exports.deleteUser = deleteUser;
+const exportPersonalData = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield db_1.default.user.findUnique({
+        where: { id },
+        include: {
+            timeEntries: true,
+            leaveRequests: true,
+            notifications: true,
+            role: true
+        }
+    });
+    if (!user)
+        throw new Error('User not found');
+    const _a = user, { password, resetToken, resetTokenExpiry } = _a, safeData = __rest(_a, ["password", "resetToken", "resetTokenExpiry"]);
+    return safeData;
+});
+exports.exportPersonalData = exportPersonalData;

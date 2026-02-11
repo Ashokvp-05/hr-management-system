@@ -1,0 +1,65 @@
+sequenceDiagram
+    autonumber
+    
+    box rgb(240, 248, 255) Frontend Layer
+    actor Emp as 👤 Employee
+    participant UI as 🖥️ Dashboard
+    end
+    
+    box rgb(255, 250, 240) Backend Layer
+    participant Socket as 📡 WebSocket
+    participant Gateway as 🚪 API Gateway
+    participant Auth as 🛡️ Auth
+    participant Logic as 🧠 Business Logic
+    end
+    
+    box rgb(240, 255, 240) Data Layer
+    participant Redis as ⚡ Redis Cache
+    participant DB as 🗄️ PostgreSQL
+    end
+
+    box rgb(255, 240, 245) Notification Target
+    actor Mgr as 👤 Manager
+    end
+
+    %% LOGIN FLOW
+    Note over Emp, DB: 🔐 Phase 1: Authentication & Initial Load
+    Emp->>UI: Login (Credentials)
+    UI->>Gateway: POST /auth/login
+    Gateway->>Auth: Verify Credentials
+    Auth->>DB: Check User Hash
+    DB-->>Auth: Valid
+    Auth-->>Gateway: Generate JWT
+    Gateway-->>UI: Return Token + Role
+    
+    UI->>Gateway: GET /dashboard/stats
+    Gateway->>Logic: Request Stats
+    Logic->>Redis: Check Cache?
+    alt Cache Hit
+        Redis-->>Logic: Return Cached Data
+    else Cache Miss
+        Logic->>DB: Query Heavy Data
+        DB-->>Logic: Return Data
+        Logic->>Redis: Set Cache (TTL 5m)
+    end
+    Logic-->>Gateway: Data
+    Gateway-->>UI: Render Dashboard
+    UI->>Socket: Connect(UserID)
+
+    %% ACTION FLOW
+    Note over Emp, Mgr: ⚡ Phase 2: Real-Time Action (Leave Request)
+    Emp->>UI: Apply for Leave
+    UI->>Gateway: POST /leave/request
+    Gateway->>Auth: Check Permissions
+    Auth-->>Gateway: OK
+    Gateway->>Logic: Process Request
+    Logic->>DB: INSERT Leave Record
+    Logic->>Socket: Emit("LEAVE_REQ", ManagerID)
+    
+    Socket->>Mgr: 🔔 Push Notification: "New Leave Request"
+    Mgr->>UI: Clicks Notification
+    UI->>Gateway: POST /leave/approve
+    Gateway->>Logic: Update Status
+    Logic->>DB: UPDATE Status="APPROVED"
+    Logic->>Socket: Emit("LEAVE_APPROVED", EmployeeID)
+    Socket->>Emp: ✅ Push Notification: "Leave Approved"

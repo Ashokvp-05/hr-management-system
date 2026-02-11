@@ -32,8 +32,8 @@ const createRequest = (data) => __awaiter(void 0, void 0, void 0, function* () {
     const balance = yield (0, exports.getBalance)(data.userId);
     const daysRequested = Math.ceil((data.endDate.getTime() - data.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     // Simple check based on type
-    if (data.type === client_1.LeaveType.SICK && balance.sick < daysRequested)
-        throw new Error(`Insufficient Sick Leave balance. Available: ${balance.sick}`);
+    if ((data.type === client_1.LeaveType.SICK || data.type === client_1.LeaveType.MEDICAL) && balance.sick < daysRequested)
+        throw new Error(`Insufficient Medical/Sick Leave balance. Available: ${balance.sick}`);
     if (data.type === client_1.LeaveType.CASUAL && balance.casual < daysRequested)
         throw new Error(`Insufficient Casual Leave balance. Available: ${balance.casual}`);
     if (data.type === client_1.LeaveType.EARNED && balance.earned < daysRequested)
@@ -56,9 +56,10 @@ const getUserRequests = (userId) => __awaiter(void 0, void 0, void 0, function* 
     });
 });
 exports.getUserRequests = getUserRequests;
-const getAllRequests = () => __awaiter(void 0, void 0, void 0, function* () {
+const getAllRequests = (departmentId) => __awaiter(void 0, void 0, void 0, function* () {
     return db_1.default.leaveRequest.findMany({
-        include: { user: { select: { name: true, email: true } } },
+        where: departmentId ? { user: { department: departmentId } } : undefined,
+        include: { user: { select: { name: true, email: true, department: true } } },
         orderBy: { createdAt: 'desc' }
     });
 });
@@ -92,7 +93,7 @@ const updateStatus = (requestId, status, adminId, reason) => __awaiter(void 0, v
             if (!balance)
                 throw new Error("Balance record not found");
             const updateData = {};
-            if (request.type === client_1.LeaveType.SICK) {
+            if (request.type === client_1.LeaveType.SICK || request.type === client_1.LeaveType.MEDICAL) {
                 if (balance.sick < days)
                     throw new Error("Insufficient Sick Leave balance during approval");
                 updateData.sick = { decrement: days };
@@ -114,10 +115,20 @@ const updateStatus = (requestId, status, adminId, reason) => __awaiter(void 0, v
                 });
             }
         }
-        return tx.leaveRequest.update({
+        const updatedRequest = yield tx.leaveRequest.update({
             where: { id: requestId },
             data: { status, approvedBy: adminId, rejectionReason: reason }
         });
+        // Notify the user about the status change
+        yield db_1.default.notification.create({
+            data: {
+                userId: request.userId,
+                title: `Leave Request ${status}`,
+                message: `Your leave request from ${request.startDate.toLocaleDateString()} to ${request.endDate.toLocaleDateString()} has been ${status.toLowerCase()}.${reason ? ` Reason: ${reason}` : ''}`,
+                type: status === client_1.LeaveStatus.APPROVED ? client_1.NotificationType.SUCCESS : client_1.NotificationType.ALERT
+            }
+        });
+        return updatedRequest;
     }));
 });
 exports.updateStatus = updateStatus;

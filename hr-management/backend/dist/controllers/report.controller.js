@@ -52,6 +52,7 @@ const exceljs_1 = __importDefault(require("exceljs"));
 const jspdf_1 = require("jspdf");
 require("jspdf-autotable");
 const getAttendanceReport = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { start, end, userId: queryUserId } = req.query;
         const loggedInUser = req.user;
@@ -59,16 +60,47 @@ const getAttendanceReport = (req, res) => __awaiter(void 0, void 0, void 0, func
             return res.status(400).json({ error: 'Start and end dates are required' });
         }
         let targetUserId = loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.id;
-        // Check if admin to allow seeing other user's reports
-        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.roleId) {
-            const role = yield db_1.default.role.findUnique({
-                where: { id: loggedInUser.roleId }
+        let targetDepartment = undefined;
+        // Fetch full user and role to determine permissions
+        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.id) {
+            const user = yield db_1.default.user.findUnique({
+                where: { id: loggedInUser.id },
+                include: { role: true }
             });
-            if ((role === null || role === void 0 ? void 0 : role.name) === 'ADMIN' && queryUserId) {
-                targetUserId = queryUserId;
+            const roleName = (_a = user === null || user === void 0 ? void 0 : user.role) === null || _a === void 0 ? void 0 : _a.name;
+            if (roleName === 'ADMIN') {
+                // Admin can see ANYONE. If queryUserId provided, filter by it. If not, see ALL (targetUserId = undefined).
+                if (queryUserId) {
+                    targetUserId = queryUserId;
+                }
+                else {
+                    targetUserId = undefined; // Fetch Logic: undefined userId = ALL users
+                }
+            }
+            else if (roleName === 'MANAGER') {
+                // Manager sees their DEPARTMENT.
+                // Constraint: Can specific queryUserId be used? Yes, but must be in their dept.
+                // For simplified "Report Page", we assume they want to see the whole team or themselves.
+                // Let's allow seeing the whole team first.
+                if (queryUserId) {
+                    // Advanced: Validate queryUserId is in dept. For now, let's just allow Department filter.
+                    targetUserId = queryUserId;
+                }
+                else {
+                    targetUserId = undefined; // Don't filter by ID
+                    targetDepartment = (user === null || user === void 0 ? void 0 : user.department) || undefined;
+                }
+                if (!targetDepartment && !queryUserId) {
+                    // Fallback if no dept assigned: See self
+                    targetUserId = loggedInUser.id;
+                }
+            }
+            else {
+                // Employee: STRICTLY Self
+                targetUserId = loggedInUser.id;
             }
         }
-        const report = yield timeEntryService.getReport(new Date(start), new Date(end), targetUserId);
+        const report = yield timeEntryService.getReport(new Date(start), new Date(end), targetUserId, targetDepartment);
         res.json(report);
     }
     catch (error) {
@@ -77,6 +109,7 @@ const getAttendanceReport = (req, res) => __awaiter(void 0, void 0, void 0, func
 });
 exports.getAttendanceReport = getAttendanceReport;
 const exportExcel = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { start, end, userId: queryUserId } = req.query;
         const loggedInUser = req.user;
@@ -84,13 +117,24 @@ const exportExcel = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             return res.status(400).json({ error: 'Start and end dates are required' });
         }
         let targetUserId = loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.id;
-        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.roleId) {
-            const role = yield db_1.default.role.findUnique({ where: { id: loggedInUser.roleId } });
-            if ((role === null || role === void 0 ? void 0 : role.name) === 'ADMIN' && queryUserId) {
-                targetUserId = queryUserId;
+        let targetDepartment = undefined;
+        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.id) {
+            const user = yield db_1.default.user.findUnique({ where: { id: loggedInUser.id }, include: { role: true } });
+            const roleName = (_a = user === null || user === void 0 ? void 0 : user.role) === null || _a === void 0 ? void 0 : _a.name;
+            if (roleName === 'ADMIN') {
+                targetUserId = queryUserId ? queryUserId : undefined;
+            }
+            else if (roleName === 'MANAGER') {
+                targetUserId = queryUserId ? queryUserId : undefined;
+                targetDepartment = (user === null || user === void 0 ? void 0 : user.department) || undefined;
+                if (!targetDepartment && !queryUserId)
+                    targetUserId = loggedInUser.id;
+            }
+            else {
+                targetUserId = loggedInUser.id;
             }
         }
-        const report = yield timeEntryService.getReport(new Date(start), new Date(end), targetUserId);
+        const report = yield timeEntryService.getReport(new Date(start), new Date(end), targetUserId, targetDepartment);
         const workbook = new exceljs_1.default.Workbook();
         const worksheet = workbook.addWorksheet('Attendance Report');
         worksheet.columns = [
@@ -131,6 +175,7 @@ const exportExcel = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 });
 exports.exportExcel = exportExcel;
 const exportPDF = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { start, end, userId: queryUserId } = req.query;
         const loggedInUser = req.user;
@@ -138,13 +183,24 @@ const exportPDF = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             return res.status(400).json({ error: 'Start and end dates are required' });
         }
         let targetUserId = loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.id;
-        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.roleId) {
-            const role = yield db_1.default.role.findUnique({ where: { id: loggedInUser.roleId } });
-            if ((role === null || role === void 0 ? void 0 : role.name) === 'ADMIN' && queryUserId) {
-                targetUserId = queryUserId;
+        let targetDepartment = undefined;
+        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.id) {
+            const user = yield db_1.default.user.findUnique({ where: { id: loggedInUser.id }, include: { role: true } });
+            const roleName = (_a = user === null || user === void 0 ? void 0 : user.role) === null || _a === void 0 ? void 0 : _a.name;
+            if (roleName === 'ADMIN') {
+                targetUserId = queryUserId ? queryUserId : undefined;
+            }
+            else if (roleName === 'MANAGER') {
+                targetUserId = queryUserId ? queryUserId : undefined;
+                targetDepartment = (user === null || user === void 0 ? void 0 : user.department) || undefined;
+                if (!targetDepartment && !queryUserId)
+                    targetUserId = loggedInUser.id;
+            }
+            else {
+                targetUserId = loggedInUser.id;
             }
         }
-        const report = yield timeEntryService.getReport(new Date(start), new Date(end), targetUserId);
+        const report = yield timeEntryService.getReport(new Date(start), new Date(end), targetUserId, targetDepartment);
         const doc = new jspdf_1.jsPDF();
         doc.setFontSize(18);
         doc.text('Attendance Report', 14, 22);

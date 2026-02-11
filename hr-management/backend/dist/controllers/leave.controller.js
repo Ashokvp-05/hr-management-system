@@ -41,11 +41,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rejectRequest = exports.approveRequest = exports.getAllRequests = exports.getBalance = exports.getMyRequests = exports.createRequest = void 0;
 const leaveService = __importStar(require("../services/leave.service"));
 const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
+const db_1 = __importDefault(require("../config/db"));
 const createRequestSchema = zod_1.z.object({
     type: zod_1.z.any(), // Temporary fix for stale enum cache
     startDate: zod_1.z.string().datetime().or(zod_1.z.string()), // Accept ISO string
@@ -55,6 +59,7 @@ const createRequestSchema = zod_1.z.object({
 const createRequest = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
+        console.log("Incoming Leave Request:", req.body);
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
@@ -106,8 +111,22 @@ const getBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
 });
 exports.getBalance = getBalance;
 const getAllRequests = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const requests = yield leaveService.getAllRequests();
+        const loggedInUser = req.user;
+        let targetDepartment = undefined;
+        if (loggedInUser === null || loggedInUser === void 0 ? void 0 : loggedInUser.roleId) {
+            const user = yield db_1.default.user.findUnique({
+                where: { id: loggedInUser.id },
+                include: { role: true }
+            });
+            if (((_a = user === null || user === void 0 ? void 0 : user.role) === null || _a === void 0 ? void 0 : _a.name) === 'MANAGER') {
+                targetDepartment = user.department || undefined;
+                // If manager has no dept, they see nothing or all? Usually nothing or just themselves.
+                // Let's assume strict department filtering.
+            }
+        }
+        const requests = yield leaveService.getAllRequests(targetDepartment);
         res.json(requests);
     }
     catch (error) {

@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRoles = exports.syncToSheets = exports.getOverview = exports.getStats = exports.rejectUser = exports.approveUser = exports.getPendingUsers = void 0;
+exports.getAuditLogs = exports.getRoles = exports.syncToSheets = exports.getOverview = exports.getStats = exports.rejectUser = exports.approveUser = exports.getPendingUsers = void 0;
 const adminService = __importStar(require("../services/admin.service"));
 const googleSheets = __importStar(require("../services/googleSheets.service"));
 const db_1 = __importDefault(require("../config/db"));
@@ -87,9 +87,14 @@ const rejectUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.rejectUser = rejectUser;
+const cache_1 = __importDefault(require("../config/cache"));
 const getStats = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const cached = cache_1.default.get("admin_stats");
+        if (cached)
+            return res.json(cached);
         const stats = yield adminService.getDatabaseStats();
+        cache_1.default.set("admin_stats", stats, 300); // Cache for 5 mins
         res.json(stats);
     }
     catch (error) {
@@ -99,7 +104,11 @@ const getStats = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.getStats = getStats;
 const getOverview = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const cached = cache_1.default.get("admin_overview");
+        if (cached)
+            return res.json(cached);
         const overview = yield adminService.getDashboardOverview();
+        cache_1.default.set("admin_overview", overview, 60); // Cache for 1 min
         res.json(overview);
     }
     catch (error) {
@@ -131,3 +140,28 @@ const getRoles = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.getRoles = getRoles;
+const getAuditLogs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Fetch top 50 logs
+        const logs = yield db_1.default.auditLog.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 50
+        });
+        // Manually join Admin details (Name & Position)
+        const adminIds = [...new Set(logs.map(log => log.adminId))].filter(Boolean);
+        const admins = yield db_1.default.user.findMany({
+            where: { id: { in: adminIds } },
+            select: { id: true, name: true, designation: true, department: true }
+        });
+        const adminMap = admins.reduce((acc, admin) => {
+            acc[admin.id] = admin;
+            return acc;
+        }, {});
+        const enrichedLogs = logs.map(log => (Object.assign(Object.assign({}, log), { admin: adminMap[log.adminId] || { name: 'Unknown System', designation: 'System' } })));
+        res.json(enrichedLogs);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.getAuditLogs = getAuditLogs;

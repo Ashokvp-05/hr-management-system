@@ -38,6 +38,7 @@ model User {
   tags             UserTag[]
   role             Role?           @relation(fields: [roleId], references: [id])
   wellnessChecks   WellnessCheck[]
+  payslips         Payslip[]
 
   @@index([email])
   @@index([status])
@@ -304,4 +305,28 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum PayslipStatus {
+  GENERATED
+  SENT
+  DOWNLOADED
+}
+
+model Payslip {
+  id        String        @id @default(uuid())
+  userId    String        @map("user_id")
+  month     String
+  year      Int
+  amount    Decimal       @db.Decimal(10, 2)
+  fileUrl   String        @map("file_url")
+  status    PayslipStatus @default(GENERATED)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([year, month])
+  @@map("payslips")
 }

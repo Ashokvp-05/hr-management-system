@@ -3,20 +3,32 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientSessionProvider from "@/components/providers/SessionProvider";
 import { auth } from "@/auth";
-import { CommandMenu } from "@/components/layout/CommandMenu";
-import FloatingTicketButton from "@/components/FloatingTicketButton";
+import dynamic from "next/dynamic";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
+// Lazy load non-critical components for better performance
+const CommandMenu = dynamic(() => import("@/components/layout/CommandMenu").then(mod => ({ default: mod.CommandMenu })), {
+  ssr: false,
+});
+
+const FloatingTicketButton = dynamic(() => import("@/components/FloatingTicketButton"), {
+  ssr: false,
+});
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: 'swap', // Prevent font blocking
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: 'swap', // Prevent font blocking
+  preload: true,
 });
 
 export const metadata: Metadata = {
