@@ -21,10 +21,11 @@ export default auth((req) => {
     }
 
     // 2. Redirection if LOGGED IN but trying to access login/register routes
-    if (isLoggedIn && isPublicRoute) {
-        const target = getDashboardByRole(role)
-        return NextResponse.redirect(new URL(target, nextUrl))
-    }
+    // TEMPORARILY DISABLED to allow access to login page
+    // if (isLoggedIn && isPublicRoute) {
+    //     const target = getDashboardByRole(role)
+    //     return NextResponse.redirect(new URL(target, nextUrl))
+    // }
 
     // 3. Handling Root (/) - Always redirect to login or specific dashboard
     if (nextUrl.pathname === "/") {

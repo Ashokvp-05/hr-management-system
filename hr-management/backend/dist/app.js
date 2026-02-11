@@ -11,12 +11,48 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const compression_1 = __importDefault(require("compression"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-// Middleware
-app.use((0, cors_1.default)());
-app.use((0, helmet_1.default)());
-app.use((0, compression_1.default)());
+// Optimized Middleware
+const allowedOrigins = [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL,
+].filter(Boolean);
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+            callback(null, true);
+        }
+        else {
+            // For now, allow it but log (or restrict in strict production)
+            // callback(new Error('Not allowed by CORS'));
+            // Actually let's be strict but clear
+            console.warn('Blocked by CORS:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    maxAge: 86400, // Cache preflight for 24 hours
+}));
+app.use((0, helmet_1.default)({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+app.use((0, compression_1.default)({
+    level: 6, // Balance between compression ratio and speed
+    threshold: 1024, // Only compress responses > 1KB
+}));
 app.use((0, morgan_1.default)('dev'));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
+// Cache control for static responses
+app.use((req, res, next) => {
+    // Set cache headers for specific routes
+    if (req.path.startsWith('/api/holidays') || req.path.startsWith('/api/announcements')) {
+        res.set('Cache-Control', 'public, max-age=300'); // 5 minutes
+    }
+    next();
+});
 // Health Check
 app.get('/', (req, res) => {
     res.json({ message: 'Rudratic HR System API is running', timestamp: new Date() });
@@ -61,4 +97,14 @@ app.use('/api/tickets', ticket_routes_1.default);
 app.use('/api/calendar', calendar_routes_1.default);
 app.use('/api/kudos', kudos_routes_1.default);
 app.use('/api/ai', ai_routes_1.default);
+// 404 Handler - must be after all routes
+app.use((req, res) => {
+    res.status(404).json({
+        status: 'error',
+        message: `Route ${req.method} ${req.url} not found`
+    });
+});
+// Global error handler - must be last
+const error_middleware_1 = require("./middleware/error.middleware");
+app.use(error_middleware_1.errorHandler);
 exports.default = app;

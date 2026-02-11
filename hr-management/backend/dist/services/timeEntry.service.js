@@ -28,7 +28,12 @@ const clockIn = (userId_1, type_1, location_1, ...args_1) => __awaiter(void 0, [
     // Check if already clocked in
     const active = yield (0, exports.getActiveEntry)(userId);
     if (active) {
-        throw new Error('User is already clocked in');
+        const duration = Math.floor((new Date().getTime() - active.clockIn.getTime()) / (1000 * 60));
+        throw new Error(`Already clocked in ${duration} minutes ago. Please clock out first.`);
+    }
+    // Validate clock type
+    if (!Object.values(client_1.ClockType).includes(type)) {
+        throw new Error('Invalid clock type. Must be IN_OFFICE, REMOTE, or HYBRID');
     }
     return db_1.default.timeEntry.create({
         data: {
@@ -38,6 +43,14 @@ const clockIn = (userId_1, type_1, location_1, ...args_1) => __awaiter(void 0, [
             location: location || {},
             status: client_1.TimeEntryStatus.ACTIVE,
             isOnCall
+        },
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    email: true
+                }
+            }
         }
     });
 });
@@ -45,22 +58,33 @@ exports.clockIn = clockIn;
 const clockOut = (userId) => __awaiter(void 0, void 0, void 0, function* () {
     const active = yield (0, exports.getActiveEntry)(userId);
     if (!active) {
-        throw new Error('No active time entry found');
+        throw new Error('No active clock-in session found. Please clock in first.');
     }
     const now = new Date();
     const diffInMs = now.getTime() - active.clockIn.getTime();
     const hoursWorked = diffInMs / (1000 * 60 * 60);
-    // Check for overtime (e.g. > 12 hours) - logic triggers here or just records it?
-    // Master plan says: "If > 12 hours -> Show confirmation modal". This is a frontend check mostly, 
-    // but backend should flag it or frontend sends a specific "confirm" flag.
-    // For basic clockOut, we just save. If user wants to confirm overtime, that might be a separate flow or flag.
-    // Let's assume standard clockout for now.
+    // Validate minimum time (prevent accidental clock-outs)
+    if (hoursWorked < 0.05) { // Less than 3 minutes
+        throw new Error('Cannot clock out within 3 minutes of clocking in');
+    }
+    // Check for excessive hours (>16 hours - likely an error)
+    if (hoursWorked > 16) {
+        throw new Error(`Unusual work duration detected: ${hoursWorked.toFixed(2)} hours. Please contact admin.`);
+    }
     return db_1.default.timeEntry.update({
         where: { id: active.id },
         data: {
             clockOut: now,
-            hoursWorked: hoursWorked, // Prisma Decimal
+            hoursWorked: Number(hoursWorked.toFixed(2)),
             status: client_1.TimeEntryStatus.COMPLETED
+        },
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    email: true
+                }
+            }
         }
     });
 });
