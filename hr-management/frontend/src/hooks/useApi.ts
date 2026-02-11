@@ -9,6 +9,22 @@ interface FetchState<T> {
     error: string | null;
 }
 
+// Helper to get full URL
+const getUrl = (endpoint: string) => {
+    if (endpoint.startsWith('http')) return endpoint;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
+    // Ensure endpoint starts with / if not present
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+    // Handle double slashes if baseUrl ends with /
+    const finalUrl = baseUrl.endsWith('/')
+        ? `${baseUrl.slice(0, -1)}${path}`
+        : `${baseUrl}${path}`;
+
+    return finalUrl;
+};
+
 export function useApi<T = any>() {
     const [state, setState] = useState<FetchState<T>>({
         data: null,
@@ -18,13 +34,14 @@ export function useApi<T = any>() {
 
     const execute = useCallback(
         async (
-            url: string,
+            endpoint: string,
             options?: RequestInit,
             showToast = true
         ): Promise<T | null> => {
             setState({ data: null, loading: true, error: null });
 
             try {
+                const url = getUrl(endpoint);
                 const response = await fetch(url, {
                     ...options,
                     headers: {
@@ -73,7 +90,8 @@ export function useApi<T = any>() {
 
 // Helper functions for common HTTP methods
 export const api = {
-    get: async (url: string) => {
+    get: async (endpoint: string) => {
+        const url = getUrl(endpoint);
         const res = await fetch(url);
         if (!res.ok) {
             const error = await res.json();
@@ -82,7 +100,8 @@ export const api = {
         return res.json();
     },
 
-    post: async (url: string, data: any) => {
+    post: async (endpoint: string, data: any) => {
+        const url = getUrl(endpoint);
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -95,7 +114,8 @@ export const api = {
         return res.json();
     },
 
-    put: async (url: string, data: any) => {
+    put: async (endpoint: string, data: any) => {
+        const url = getUrl(endpoint);
         const res = await fetch(url, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -108,7 +128,8 @@ export const api = {
         return res.json();
     },
 
-    delete: async (url: string) => {
+    delete: async (endpoint: string) => {
+        const url = getUrl(endpoint);
         const res = await fetch(url, { method: 'DELETE' });
         if (!res.ok) {
             const error = await res.json();
