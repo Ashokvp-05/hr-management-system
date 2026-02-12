@@ -85,6 +85,7 @@ import ticketRoutes from './routes/ticket.routes';
 import calendarRoutes from './routes/calendar.routes';
 import kudosRoutes from './routes/kudos.routes';
 import aiRoutes from './routes/ai.routes';
+import payslipRoutes from './routes/payslip.routes';
 import { initCronJobs } from './services/cron.service';
 
 // Initialize Scheduled Tasks
@@ -104,6 +105,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/kudos', kudosRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/payslips', payslipRoutes);
 
 // 404 Handler - must be after all routes
 app.use((req, res) => {

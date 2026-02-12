@@ -15,6 +15,8 @@ interface LeaveRequest {
     reason?: string
 }
 
+import { API_BASE_URL } from "@/lib/config"
+
 export default function LeaveHistoryList({ token, refreshTrigger = 0 }: { token: string, refreshTrigger?: number }) {
     const [requests, setRequests] = useState<LeaveRequest[]>([])
     const [loading, setLoading] = useState(true)
@@ -22,7 +24,7 @@ export default function LeaveHistoryList({ token, refreshTrigger = 0 }: { token:
     useEffect(() => {
         const fetchRequests = async () => {
             try {
-                const res = await fetch("http://localhost:4000/api/leaves/my-requests", {
+                const res = await fetch(`${API_BASE_URL}/leaves/my-requests`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 if (res.ok) {
@@ -55,7 +57,8 @@ export default function LeaveHistoryList({ token, refreshTrigger = 0 }: { token:
                     <div key={req.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-800 transition-all group">
                         <div className="flex items-start gap-4">
                             <div className={`mt-1 p-2 rounded-lg ${req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
-                                    req.status === 'REJECTED' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-600'
+                                req.status === 'REJECTED' ? 'bg-rose-100 text-rose-600' :
+                                    req.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'
                                 }`}>
                                 <CalendarX2 className="w-4 h-4" />
                             </div>
@@ -64,8 +67,9 @@ export default function LeaveHistoryList({ token, refreshTrigger = 0 }: { token:
                                     <span className="font-bold text-slate-900 dark:text-white">{req.type}</span>
                                     <Badge variant={
                                         req.status === 'APPROVED' ? 'default' :
-                                            req.status === 'REJECTED' ? 'destructive' : 'secondary'
-                                    } className="text-[10px] h-5 font-bold">
+                                            req.status === 'REJECTED' ? 'destructive' :
+                                                req.status === 'PENDING' ? 'secondary' : 'outline'
+                                    } className={`text-[10px] h-5 font-bold ${req.status === 'PENDING' ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : ''}`}>
                                         {req.status}
                                     </Badge>
                                 </div>
