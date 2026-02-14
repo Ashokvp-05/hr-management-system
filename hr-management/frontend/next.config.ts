@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+
   // Development indicators
   devIndicators: {
     // @ts-expect-error - Next.js 15+ indicator config

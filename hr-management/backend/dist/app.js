@@ -11,9 +11,11 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const compression_1 = __importDefault(require("compression"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
+app.set('etag', false); // Disable etag for simpler debugging
 // Optimized Middleware
 const allowedOrigins = [
     'http://localhost:3000',
+    'http://127.0.0.1:3000',
     process.env.FRONTEND_URL,
 ].filter(Boolean);
 app.use((0, cors_1.default)({
@@ -80,6 +82,8 @@ const ticket_routes_1 = __importDefault(require("./routes/ticket.routes"));
 const calendar_routes_1 = __importDefault(require("./routes/calendar.routes"));
 const kudos_routes_1 = __importDefault(require("./routes/kudos.routes"));
 const ai_routes_1 = __importDefault(require("./routes/ai.routes"));
+const payslip_routes_1 = __importDefault(require("./routes/payslip.routes"));
+const workflow_routes_1 = __importDefault(require("./routes/workflow.routes"));
 const cron_service_1 = require("./services/cron.service");
 // Initialize Scheduled Tasks
 (0, cron_service_1.initCronJobs)();
@@ -97,6 +101,8 @@ app.use('/api/tickets', ticket_routes_1.default);
 app.use('/api/calendar', calendar_routes_1.default);
 app.use('/api/kudos', kudos_routes_1.default);
 app.use('/api/ai', ai_routes_1.default);
+app.use('/api/payslips', payslip_routes_1.default);
+app.use('/api/workflows', workflow_routes_1.default);
 // 404 Handler - must be after all routes
 app.use((req, res) => {
     res.status(404).json({

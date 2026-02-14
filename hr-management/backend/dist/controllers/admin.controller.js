@@ -45,9 +45,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAuditLogs = exports.getRoles = exports.syncToSheets = exports.getOverview = exports.getStats = exports.rejectUser = exports.approveUser = exports.getPendingUsers = void 0;
+exports.deleteUser = exports.resetUserPassword = exports.toggleUserStatus = exports.updateSettings = exports.getSettings = exports.getAuditLogs = exports.getRoles = exports.syncToSheets = exports.getOverview = exports.getStats = exports.rejectUser = exports.approveUser = exports.getPendingUsers = void 0;
 const adminService = __importStar(require("../services/admin.service"));
 const googleSheets = __importStar(require("../services/googleSheets.service"));
+const configService = __importStar(require("../services/config.service"));
+const auditService = __importStar(require("../services/audit.service"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const db_1 = __importDefault(require("../config/db"));
 const getPendingUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -165,3 +168,78 @@ const getAuditLogs = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     }
 });
 exports.getAuditLogs = getAuditLogs;
+// System Configuration
+const getSettings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const configs = yield configService.getAllConfigs();
+        res.json(configs);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.getSettings = getSettings;
+const updateSettings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        yield configService.updateBulkConfigs(req.body);
+        const adminId = req.user.id;
+        auditService.logAction('SYSTEM_CONFIG_UPDATE', adminId, 'SYSTEM', `Updated system settings: ${Object.keys(req.body).join(', ')}`);
+        res.json({ message: "Settings updated successfully" });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.updateSettings = updateSettings;
+// Advanced User Control
+const toggleUserStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // ACTIVE, SUSPENDED, INACTIVE
+        const user = yield db_1.default.user.update({
+            where: { id },
+            data: { status }
+        });
+        const adminId = req.user.id;
+        auditService.logAction('USER_STATUS_CHANGE', adminId, id, `Changed status for ${user.name} to ${status}`);
+        res.json(user);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.toggleUserStatus = toggleUserStatus;
+const resetUserPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+        const hashedPassword = yield bcryptjs_1.default.hash(newPassword, 10);
+        yield db_1.default.user.update({
+            where: { id },
+            data: { password: hashedPassword }
+        });
+        const adminId = req.user.id;
+        auditService.logAction('USER_PASSWORD_RESET', adminId, id, `Forced password reset for user ID ${id}`);
+        res.json({ message: "Password reset successful" });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.resetUserPassword = resetUserPassword;
+const deleteUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const user = yield db_1.default.user.findUnique({ where: { id } });
+        if (!user)
+            return res.status(404).json({ error: "User not found" });
+        yield db_1.default.user.delete({ where: { id } });
+        const adminId = req.user.id;
+        auditService.logAction('USER_DELETE', adminId, id, `Permanently deleted user ${user.name} (${user.email})`);
+        res.json({ message: "User deleted successfully" });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.deleteUser = deleteUser;

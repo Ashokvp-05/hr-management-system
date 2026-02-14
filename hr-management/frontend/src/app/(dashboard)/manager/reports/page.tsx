@@ -1,10 +1,26 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Loader2, BarChart3, PieChart as PieIcon, Users, FileText } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+    Calendar as CalendarIcon,
+    Loader2,
+    BarChart3,
+    PieChart as PieIcon,
+    Users,
+    FileText,
+    TrendingUp,
+    Zap,
+    Clock,
+    Search,
+    SearchX,
+    RotateCcw
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
     BarChart,
@@ -19,13 +35,18 @@ import {
     Pie,
     Legend
 } from "recharts"
+import { API_BASE_URL } from "@/lib/config"
+import { format, startOfDay, endOfDay, subDays } from "date-fns"
 
 export default function ManagerReportsPage() {
     const { data: session } = useSession()
     const token = (session?.user as any)?.accessToken
 
-    const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0])
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
+    const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+        from: subDays(new Date(), 7),
+        to: new Date()
+    })
+    const [searchQuery, setSearchQuery] = useState("")
     const [loading, setLoading] = useState(false)
     const [reportData, setReportData] = useState<any[]>([])
 
@@ -33,8 +54,9 @@ export default function ManagerReportsPage() {
         if (!token) return
         setLoading(true)
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
-            const res = await fetch(`${apiUrl}/reports/attendance?start=${startDate}&end=${endDate}`, {
+            const startStr = format(startOfDay(dateRange.from), "yyyy-MM-dd")
+            const endStr = format(endOfDay(dateRange.to), "yyyy-MM-dd")
+            const res = await fetch(`${API_BASE_URL}/reports/attendance?start=${startStr}&end=${endStr}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (res.ok) {
@@ -50,273 +72,350 @@ export default function ManagerReportsPage() {
 
     useEffect(() => {
         fetchReport()
-    }, [startDate, endDate, token])
+    }, [dateRange.from, dateRange.to, token])
 
-    // Aggregate data for charts
-    const chartData = reportData.reduce((acc: any[], current: any) => {
-        const date = new Date(current.clockIn).toLocaleDateString('en-US', { weekday: 'short' })
-        const existing = acc.find((item: any) => item.name === date)
-        const hours = Number(current.hoursWorked) || 0
-        if (existing) {
-            existing.hours += hours
-        } else {
-            acc.push({ name: date, hours })
-        }
-        return acc
-    }, []).reverse()
+    // Processed Data
+    const filteredData = useMemo(() => {
+        return reportData.filter(item =>
+            item.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    }, [reportData, searchQuery])
 
-    const typeData = reportData.reduce((acc: any[], current: any) => {
-        const type = current.clockType
-        const existing = acc.find((item: any) => item.name === type)
-        if (existing) {
-            existing.value++
-        } else {
-            acc.push({ name: type, value: 1 })
+    const stats = useMemo(() => {
+        const totalHours = reportData.reduce((acc, curr) => acc + (Number(curr.hoursWorked) || 0), 0)
+        const entries = reportData.length
+        const teamSize = new Set(reportData.map(r => r.user.id)).size
+        const avgHours = entries > 0 ? totalHours / entries : 0
+
+        return {
+            totalHours: totalHours.toFixed(1),
+            teamSize,
+            avgHours: avgHours.toFixed(1),
+            entries
         }
-        return acc
-    }, [])
+    }, [reportData])
+
+    const chartData = useMemo(() => {
+        const aggregated = reportData.reduce((acc: any, current: any) => {
+            const date = format(new Date(current.clockIn), "EEE")
+            acc[date] = (acc[date] || 0) + (Number(current.hoursWorked) || 0)
+            return acc
+        }, {})
+
+        return Object.entries(aggregated).map(([name, hours]) => ({
+            name,
+            hours: Number((hours as number).toFixed(1))
+        }))
+    }, [reportData])
+
+    const typeData = useMemo(() => {
+        const counts = reportData.reduce((acc: any, current: any) => {
+            acc[current.clockType] = (acc[current.clockType] || 0) + 1
+            return acc
+        }, {})
+        return Object.entries(counts).map(([name, value]) => ({ name, value }))
+    }, [reportData])
 
     const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444']
 
     return (
-        <div className="flex-1 space-y-8 p-8 pt-6 animate-in fade-in duration-500">
+        <div className="flex-1 space-y-8 p-8 pt-6 bg-slate-50/50 dark:bg-slate-950/50 min-h-screen animate-in fade-in duration-500">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-                        Team <span className="text-indigo-600">Analytics</span>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div>
+                    <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white uppercase tracking-widest text-indigo-600">
+                        Team Performance
                     </h2>
-                    <p className="text-muted-foreground text-sm font-medium">Deep-dive into your department's attendance trends and productivity metrics.</p>
+                    <p className="text-muted-foreground mt-1 text-sm font-medium">Departmental attendance trends and workload analytics.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" className="rounded-full shadow-sm" onClick={() => window.print()}>
-                        <FileText className="w-4 h-4 mr-2" /> Export PDF
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" className="bg-white dark:bg-slate-900 font-bold rounded-xl border-slate-200 dark:border-slate-800 shadow-sm" onClick={() => window.print()}>
+                        <FileText className="w-4 h-4 mr-2" /> Print Summary
                     </Button>
                 </div>
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                    <CardContent className="p-6">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Active Hours</p>
-                        <div className="text-3xl font-black text-indigo-600 mt-1">
-                            {chartData.reduce((a, b) => a + b.hours, 0).toFixed(1)}h
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                    <CardContent className="p-6">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Team Size</p>
-                        <div className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-                            {new Set(reportData.map(r => r.user.id)).size} Members
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                    <CardContent className="p-6">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Average Per Day</p>
-                        <div className="text-3xl font-black text-emerald-600 mt-1">
-                            {(chartData.reduce((a, b) => a + b.hours, 0) / (chartData.length || 1)).toFixed(1)}h
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                    <CardContent className="p-6">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Records Logged</p>
-                        <div className="text-3xl font-black text-amber-600 mt-1">
-                            {reportData.length}
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {loading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <Card key={i} className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <Skeleton className="h-12 w-12 rounded-2xl" />
+                                    <div className="space-y-2 text-right ml-auto">
+                                        <Skeleton className="h-3 w-20 ml-auto" />
+                                        <Skeleton className="h-8 w-24 ml-auto" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                ) : (
+                    [
+                        { label: "Man-Hours", value: `${stats.totalHours}h`, icon: Clock, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-900/20" },
+                        { label: "Personnel Count", value: stats.teamSize, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+                        { label: "Productivity Index", value: `${stats.avgHours}h`, icon: Zap, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-900/20" },
+                        { label: "Valid Records", value: stats.entries, icon: TrendingUp, color: "text-fuchsia-600", bg: "bg-fuchsia-50 dark:bg-fuchsia-900/20" }
+                    ].map((stat, i) => (
+                        <Card key={i} className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden bg-white dark:bg-slate-900 transform transition-all hover:scale-[1.02] hover:shadow-md hover:ring-indigo-200/50">
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
+                                        <stat.icon className="w-6 h-6" />
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                                        <p className="text-3xl font-black text-slate-900 dark:text-white">{stat.value}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
             </div>
 
             {/* Filters */}
-            <Card className="border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <CalendarIcon className="w-5 h-5 text-indigo-500" />
-                        <CardTitle className="text-lg">Date Range Selector</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-wrap items-end gap-6">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Start Date</label>
+            <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+                <CardContent className="p-6">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-end justify-between gap-6">
+                        <div className="flex flex-wrap items-end gap-6 w-full xl:w-auto">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Data Window</label>
+                                <div className="flex items-center gap-2">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="h-11 px-4 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-xl font-bold flex items-center gap-2 min-w-[200px] justify-start shadow-none">
+                                                <CalendarIcon className="w-4 h-4 text-indigo-500" />
+                                                {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0 border-none shadow-2xl rounded-2xl" align="start">
+                                            <Calendar
+                                                mode="range"
+                                                selected={dateRange as any}
+                                                onSelect={(range: any) => range?.from && range?.to && setDateRange(range)}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
+                            <Button
+                                onClick={fetchReport}
+                                disabled={loading}
+                                className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                            >
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                                Sync Data
+                            </Button>
+                        </div>
+
+                        <div className="relative w-full xl:w-80">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-48 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 focus:ring-indigo-500"
+                                placeholder="Search team members..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="h-11 pl-10 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-indigo-500 w-full font-medium"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">End Date</label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-48 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 focus:ring-indigo-500"
-                            />
-                        </div>
-                        <Button
-                            onClick={fetchReport}
-                            disabled={loading}
-                            className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 rounded-full px-6"
-                        >
-                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BarChart3 className="mr-2 h-4 w-4" />}
-                            Update Analytics
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* BAR CHART: Hours per Day */}
-                <Card className="lg:col-span-8 border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2 text-indigo-400">
+                {/* BAR CHART */}
+                <Card className="lg:col-span-8 border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/50">
                         <div className="space-y-1">
                             <CardTitle className="text-xl font-bold">Team Workloads</CardTitle>
-                            <CardDescription>Total aggregated work hours of your department.</CardDescription>
+                            <CardDescription className="text-xs">Visualizing departmental labor distribution.</CardDescription>
                         </div>
                         <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                            <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                            <BarChart3 className="w-5 h-5 text-indigo-600" />
                         </div>
                     </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="h-[350px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#64748b', fontSize: 12 }}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#64748b', fontSize: 12 }}
-                                        unit="h"
-                                    />
-                                    <RechartsTooltip
-                                        cursor={{ fill: '#f1f5f9' }}
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    />
-                                    <Bar dataKey="hours" radius={[6, 6, 0, 0]}>
-                                        {chartData.map((_entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                    <CardContent className="pt-8">
+                        {loading ? (
+                            <Skeleton className="h-[350px] w-full rounded-xl" />
+                        ) : (
+                            <div className="h-[350px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} unit="h" />
+                                        <RechartsTooltip
+                                            cursor={{ fill: 'transparent' }}
+                                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.95)' }}
+                                        />
+                                        <Bar dataKey="hours" radius={[8, 8, 8, 8]} barSize={40}>
+                                            {chartData.map((_entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* PIE CHART: Attendance Type */}
-                <Card className="lg:col-span-4 border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
-                    <CardHeader className="pb-2">
+                {/* PIE CHART */}
+                <Card className="lg:col-span-4 border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
+                    <CardHeader className="pb-2 border-b border-slate-100 dark:border-slate-800/50">
                         <div className="flex items-center justify-between">
-                            <CardTitle className="text-xl font-bold">Work Mode</CardTitle>
+                            <CardTitle className="text-xl font-bold">Modality Split</CardTitle>
                             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                                <PieIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                <PieIcon className="w-5 h-5 text-emerald-600" />
                             </div>
                         </div>
-                        <CardDescription>How your team is working (Remote vs Office).</CardDescription>
+                        <CardDescription className="text-xs">Office vs Remote vs Field breakdown.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex flex-col items-center">
-                        <div className="h-[280px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={typeData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {typeData.map((_entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    />
-                                    <Legend verticalAlign="bottom" height={36} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="w-full space-y-3 mt-4">
-                            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm">
-                                <span className="text-xs font-bold uppercase text-slate-500">Total Validated Entries</span>
-                                <span className="text-lg font-black text-indigo-600">{reportData.length}</span>
+                    <CardContent className="flex flex-col items-center pt-8">
+                        {loading ? (
+                            <Skeleton className="h-[280px] w-full rounded-full" />
+                        ) : (
+                            <div className="h-[280px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={typeData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={70}
+                                            outerRadius={90}
+                                            paddingAngle={8}
+                                            dataKey="value"
+                                            stroke="none"
+                                        >
+                                            {typeData.map((_entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', backgroundColor: 'rgba(255,255,255,0.95)' }} />
+                                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ paddingTop: '20px', fontWeight: 'bold', fontSize: '11px' }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
                             </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Data Table */}
-                <Card className="lg:col-span-12 border-0 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                    <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-                        <CardTitle className="text-lg font-bold">Team Activity Logs</CardTitle>
-                        <CardDescription>Comprehensive audit trail of your team's work sessions.</CardDescription>
+                {/* ACTIVITY LOG TABLE */}
+                <Card className="lg:col-span-12 border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                    <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800/50 py-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-xl font-bold">Activity Log</CardTitle>
+                                <CardDescription className="text-xs">Audit trail of departmental work sessions.</CardDescription>
+                            </div>
+                            {loading ? (
+                                <Skeleton className="h-6 w-32 rounded-full" />
+                            ) : (
+                                <div className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest border border-indigo-500 shadow-sm shadow-indigo-500/20">
+                                    {filteredData.length} Valid Records
+                                </div>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
-                                        <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-8">Employee</th>
-                                        <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
-                                        <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clock In</th>
-                                        <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clock Out</th>
-                                        <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mode</th>
-                                        <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right pr-8">Duration</th>
+                                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/40">
+                                        <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-8">Employee</th>
+                                        <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Verification Date</th>
+                                        <th className="p-5 text-[10px) font-black text-slate-400 uppercase tracking-[0.2em]">In</th>
+                                        <th className="p-5 text-[10px) font-black text-slate-400 uppercase tracking-[0.2em]">Out</th>
+                                        <th className="p-5 text-[10px) font-black text-slate-400 uppercase tracking-[0.2em]">Mode</th>
+                                        <th className="p-5 text-[10px) font-black text-slate-400 uppercase tracking-[0.2em] text-right pr-8">Intensity</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {reportData.map((row, idx) => (
-                                        <tr key={idx} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                                            <td className="p-4 pl-8">
-                                                <div className="flex flex-col">
-                                                    <span className="font-black text-slate-900 dark:text-white">{row.user.name}</span>
-                                                    <span className="text-[10px] text-slate-500 font-medium">{row.user.email}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-sm font-semibold">{new Date(row.clockIn).toLocaleDateString()}</td>
-                                            <td className="p-4 text-sm font-mono text-emerald-600 dark:text-emerald-400 font-bold">{new Date(row.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                                            <td className="p-4 text-sm font-mono text-rose-600 dark:text-rose-400 font-bold">
-                                                {row.clockOut ? new Date(row.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ACTIVE'}
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${row.clockType === 'IN_OFFICE' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' :
-                                                    row.clockType === 'REMOTE' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
-                                                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                                                    }`}>
-                                                    {row.clockType}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right pr-8 font-black text-slate-900 dark:text-white">
-                                                {Number(row.hoursWorked).toFixed(2)}h
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {reportData.length === 0 && (
-                                        <tr>
-                                            <td colSpan={6} className="p-20 text-center text-slate-400 font-medium italic">
-                                                No team records found for the selected period.
-                                            </td>
-                                        </tr>
+                                    {loading ? (
+                                        Array.from({ length: 8 }).map((_, i) => (
+                                            <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50">
+                                                <td className="p-5 pl-8"><Skeleton className="h-10 w-48" /></td>
+                                                <td className="p-5"><Skeleton className="h-5 w-24" /></td>
+                                                <td className="p-5"><Skeleton className="h-6 w-16 mx-auto" /></td>
+                                                <td className="p-5"><Skeleton className="h-6 w-16 mx-auto" /></td>
+                                                <td className="p-5"><Skeleton className="h-6 w-20 rounded-lg" /></td>
+                                                <td className="p-5 text-right pr-8"><Skeleton className="h-8 w-14 ml-auto" /></td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <>
+                                            {filteredData.map((row, idx) => (
+                                                <tr key={idx} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
+                                                    <td className="p-5 pl-8">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">{row.user.name}</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{row.user.email}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-5 text-sm font-bold text-slate-600 dark:text-slate-400 italic">
+                                                        {format(new Date(row.clockIn), "dd MMM, yyyy")}
+                                                    </td>
+                                                    <td className="p-5 text-center">
+                                                        <span className="text-[11px] font-black font-mono px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-100/50 dark:border-emerald-800/30">
+                                                            {format(new Date(row.clockIn), "HH:mm")}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-5 text-center">
+                                                        {row.clockOut ? (
+                                                            <span className="text-[11px] font-black font-mono px-3 py-1 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100/50 dark:border-rose-800/30">
+                                                                {format(new Date(row.clockOut), "HH:mm")}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1.5 text-[9px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-lg border border-amber-100/50 dark:border-amber-800/30">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                                Active
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-5">
+                                                        <span className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border ${row.clockType === 'IN_OFFICE' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800/50' :
+                                                            row.clockType === 'REMOTE' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/50' :
+                                                                'border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50'
+                                                            }`}>
+                                                            {row.clockType}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-5 text-right pr-8">
+                                                        <span className="text-sm font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg ring-1 ring-slate-200/50 dark:ring-slate-700/50">
+                                                            {Number(row.hoursWorked).toFixed(2)}h
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filteredData.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={6} className="p-24 text-center">
+                                                        <div className="flex flex-col items-center gap-3 opacity-30 grayscale">
+                                                            <SearchX className="w-12 h-12 text-slate-300" />
+                                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs italic">No dataset recorded for this timeframe.</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </CardContent>
                 </Card>
+            </div>
+
+            <div className="flex items-center justify-between pt-8 opacity-40 grayscale border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-4">
+                    <TrendingUp className="w-4 h-4" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[1em]">Rudratic Intelligence System</p>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Manager Protocol Stability v.3.5.2</p>
             </div>
         </div>
     )

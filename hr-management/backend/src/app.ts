@@ -8,10 +8,12 @@ import compression from 'compression';
 dotenv.config();
 
 const app = express();
+app.set('etag', false); // Disable etag for simpler debugging
 
 // Optimized Middleware
 const allowedOrigins = [
     'http://localhost:3000',
+    'http://127.0.0.1:3000',
     process.env.FRONTEND_URL,
 ].filter(Boolean);
 
@@ -86,6 +88,7 @@ import calendarRoutes from './routes/calendar.routes';
 import kudosRoutes from './routes/kudos.routes';
 import aiRoutes from './routes/ai.routes';
 import payslipRoutes from './routes/payslip.routes';
+import workflowRoutes from './routes/workflow.routes';
 import { initCronJobs } from './services/cron.service';
 
 // Initialize Scheduled Tasks
@@ -106,6 +109,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/kudos', kudosRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/payslips', payslipRoutes);
+app.use('/api/workflows', workflowRoutes);
 
 // 404 Handler - must be after all routes
 app.use((req, res) => {

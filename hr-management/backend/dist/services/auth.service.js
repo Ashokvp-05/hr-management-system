@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePassword = exports.resetPassword = exports.requestPasswordReset = exports.verifyCredentials = exports.requestRegistration = void 0;
+exports.changePassword = exports.resetPassword = exports.requestPasswordReset = exports.disable2FA = exports.activate2FA = exports.setup2FA = exports.verify2FALogin = exports.verifyCredentials = exports.requestRegistration = void 0;
 const db_1 = __importDefault(require("../config/db"));
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
@@ -53,6 +53,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const crypto_1 = __importDefault(require("crypto"));
 const emailService = __importStar(require("./email.service"));
+const tfaService = __importStar(require("./2fa.service"));
 const registerSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(6),
@@ -122,6 +123,14 @@ const verifyCredentials = (data) => __awaiter(void 0, void 0, void 0, function* 
         // OR deny it:
         // throw new Error(`Account is ${user.status}`);
     }
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+        return {
+            requires2FA: true,
+            email: user.email,
+            id: user.id
+        };
+    }
     const token = jsonwebtoken_1.default.sign({
         id: user.id,
         email: user.email,
@@ -143,6 +152,75 @@ const verifyCredentials = (data) => __awaiter(void 0, void 0, void 0, function* 
     };
 });
 exports.verifyCredentials = verifyCredentials;
+const verify2FALogin = (userId, code) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const user = yield db_1.default.user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+    });
+    if (!user || !user.twoFactorSecret) {
+        throw new Error('2FA not configured for this user');
+    }
+    const isValid = tfaService.verifyToken(code, user.twoFactorSecret);
+    if (!isValid) {
+        throw new Error('Invalid authentication code');
+    }
+    const token = jsonwebtoken_1.default.sign({
+        id: user.id,
+        email: user.email,
+        roleId: user.roleId,
+        role: (_a = user.role) === null || _a === void 0 ? void 0 : _a.name,
+        status: user.status
+    }, process.env.JWT_SECRET || 'super-secret-key', { expiresIn: '1d' });
+    return {
+        token,
+        user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            roleId: user.roleId,
+            role: (_b = user.role) === null || _b === void 0 ? void 0 : _b.name,
+            status: user.status
+        }
+    };
+});
+exports.verify2FALogin = verify2FALogin;
+const setup2FA = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield db_1.default.user.findUnique({ where: { id: userId } });
+    if (!user)
+        throw new Error('User not found');
+    const { secret, otpauth } = tfaService.generateSecret(user.email);
+    const qrCode = yield tfaService.generateQRCode(otpauth);
+    // Pre-save secret but don't enable it yet
+    yield db_1.default.user.update({
+        where: { id: userId },
+        data: { twoFactorSecret: secret, twoFactorEnabled: false }
+    });
+    return { qrCode, secret };
+});
+exports.setup2FA = setup2FA;
+const activate2FA = (userId, code) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield db_1.default.user.findUnique({ where: { id: userId } });
+    if (!user || !user.twoFactorSecret)
+        throw new Error('2FA Setup not initiated');
+    const isValid = tfaService.verifyToken(code, user.twoFactorSecret);
+    if (!isValid)
+        throw new Error('Invalid verification code');
+    yield db_1.default.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: true }
+    });
+    return { message: '2FA Activated successfully' };
+});
+exports.activate2FA = activate2FA;
+const disable2FA = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    yield db_1.default.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: false, twoFactorSecret: null }
+    });
+    return { message: '2FA disabled successfully' };
+});
+exports.disable2FA = disable2FA;
 const requestPasswordReset = (email) => __awaiter(void 0, void 0, void 0, function* () {
     const user = yield db_1.default.user.findUnique({
         where: { email },

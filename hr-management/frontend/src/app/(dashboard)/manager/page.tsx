@@ -20,6 +20,7 @@ import { PendingRequestsList } from "@/components/dashboard/PendingRequestsList"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
+import { TeamAnnouncer } from "@/components/dashboard/TeamAnnouncer"
 
 export default async function ManagerDashboardPage() {
     const session = await auth()
@@ -140,7 +141,7 @@ export default async function ManagerDashboardPage() {
                                     </h1>
 
                                     <p className="text-slate-200 font-medium text-base md:text-lg max-w-2xl">
-                                        You have <span className="text-white font-black text-xl">{overview.pendingApprovals}</span> pending approvals requiring your attention today.
+                                        You have <span className="text-white font-black text-xl" data-privacy="true">{overview.pendingApprovals}</span> pending approvals requiring your attention today.
                                     </p>
 
                                     <div className="flex items-center gap-4 mt-6 flex-wrap">
@@ -239,11 +240,11 @@ export default async function ManagerDashboardPage() {
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex-1">
-                                                        <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                        <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" data-privacy="true">
                                                             {user.name}
                                                         </p>
                                                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                            <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                                                            <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5" data-privacy="true">
                                                                 <Clock className="w-3.5 h-3.5 text-indigo-500" />
                                                                 Clocked in at {new Date(user.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </p>
@@ -352,35 +353,7 @@ export default async function ManagerDashboardPage() {
                                 </div>
 
                                 {/* Team Announcements */}
-                                <div className="space-y-4 md:border-l md:pl-8 border-slate-200 dark:border-slate-800">
-                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                        <Megaphone className="w-4 h-4" /> Team Announcements
-                                    </h4>
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all shadow-sm">
-                                        <textarea
-                                            className="w-full bg-transparent border-0 text-sm font-medium placeholder:text-slate-400 focus:ring-0 resize-none h-24 leading-relaxed"
-                                            placeholder="Type an urgent update for the team (e.g., 'Server maintenance at 5 PM')..."
-                                        />
-                                        <div className="flex flex-wrap items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 gap-3">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition-colors">
-                                                    Normal
-                                                </Badge>
-                                                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 cursor-pointer hover:bg-amber-50 transition-colors dark:border-amber-700 dark:text-amber-400">
-                                                    Urgent
-                                                </Badge>
-                                            </div>
-                                            <Button size="sm" className="h-9 text-xs bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 font-bold px-5 shadow-lg rounded-xl">
-                                                <Megaphone className="w-3.5 h-3.5 mr-2" />
-                                                Post
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <p className="text-xs text-slate-400 flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                                        Live broadcast to {overview.totalActiveUsers} active members
-                                    </p>
-                                </div>
+                                <TeamAnnouncer token={token} activeCount={overview.totalActiveUsers} />
                             </CardContent>
                         </Card>
 

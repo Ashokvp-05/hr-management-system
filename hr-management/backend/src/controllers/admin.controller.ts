@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import * as adminService from '../services/admin.service';
 import * as googleSheets from '../services/googleSheets.service';
+import * as configService from '../services/config.service';
+import * as auditService from '../services/audit.service';
+import bcrypt from 'bcryptjs';
 import prisma from '../config/db';
 
 
@@ -114,6 +117,84 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         }));
 
         res.json(enrichedLogs);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// System Configuration
+export const getSettings = async (req: Request, res: Response) => {
+    try {
+        const configs = await configService.getAllConfigs();
+        res.json(configs);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const updateSettings = async (req: Request, res: Response) => {
+    try {
+        await configService.updateBulkConfigs(req.body);
+        const adminId = (req as any).user.id;
+        auditService.logAction('SYSTEM_CONFIG_UPDATE', adminId, 'SYSTEM', `Updated system settings: ${Object.keys(req.body).join(', ')}`);
+        res.json({ message: "Settings updated successfully" });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Advanced User Control
+export const toggleUserStatus = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // ACTIVE, SUSPENDED, INACTIVE
+
+        const user = await prisma.user.update({
+            where: { id },
+            data: { status }
+        });
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('USER_STATUS_CHANGE', adminId, id, `Changed status for ${user.name} to ${status}`);
+
+        res.json(user);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const resetUserPassword = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id },
+            data: { password: hashedPassword }
+        });
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('USER_PASSWORD_RESET', adminId, id, `Forced password reset for user ID ${id}`);
+
+        res.json({ message: "Password reset successful" });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        await prisma.user.delete({ where: { id } });
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('USER_DELETE', adminId, id, `Permanently deleted user ${user.name} (${user.email})`);
+
+        res.json({ message: "User deleted successfully" });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

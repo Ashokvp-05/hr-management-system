@@ -42,4 +42,9 @@ router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 router.post('/change-password', auth_middleware_1.authenticate, authController.changePassword);
+// 2FA Routes
+router.post('/2fa/verify', authController.verify2FALogin);
+router.post('/2fa/setup', auth_middleware_1.authenticate, authController.setup2FA);
+router.post('/2fa/activate', auth_middleware_1.authenticate, authController.activate2FA);
+router.post('/2fa/disable', auth_middleware_1.authenticate, authController.disable2FA);
 exports.default = router;

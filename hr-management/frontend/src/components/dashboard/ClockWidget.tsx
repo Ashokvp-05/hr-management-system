@@ -140,13 +140,15 @@ export default function ClockWidget({ token }: { token: string }) {
             })
 
             if (!res.ok) {
-                throw new Error("Clock out failed")
+                const data = await res.json()
+                throw new Error(data.error || "Clock out failed")
             }
 
             setActiveEntry(null)
             setShowOvertimeModal(false)
         } catch (err: any) {
             setError(err.message)
+            setShowOvertimeModal(false)
         } finally {
             setActionLoading(false)
         }

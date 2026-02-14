@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Brain, Zap, Loader2, Target, Flame, Activity, TrendingUp, BarChart3, Gauge } from "lucide-react"
+import Link from "next/link"
 import { motion } from "framer-motion"
 
 export function ProductivityAnalytics({ token }: { token: string }) {
@@ -123,7 +124,7 @@ export function ProductivityAnalytics({ token }: { token: string }) {
                         <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
                         <span className="text-[9px] font-black uppercase text-muted-foreground tracking-tighter">Peak Cognitive State Detected</span>
                     </div>
-                    <button className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-500 underline underline-offset-4">Full Audit</button>
+                    <Link href="/performance" className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-500 underline underline-offset-4">Full Audit</Link>
                 </div>
             </CardContent>
         </Card>

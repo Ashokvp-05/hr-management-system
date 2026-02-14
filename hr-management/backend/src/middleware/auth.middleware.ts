@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserStatus } from '@prisma/client';
+import prisma from '../config/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
 
@@ -14,7 +15,7 @@ export interface AuthRequest extends Request {
     };
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
@@ -27,10 +28,23 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
         const decoded = jwt.verify(token, JWT_SECRET) as any;
         req.user = decoded;
 
+        // --- LOCKDOWN CHECK ---
+        const lockdownConfig = await prisma.systemConfig.findUnique({
+            where: { key: 'lockdownMode' }
+        });
+
+        const isLockdown = lockdownConfig?.value === true;
+        const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(decoded.role || '');
+
+        if (isLockdown && !isAdmin) {
+            return res.status(503).json({
+                error: 'System In Lockdown',
+                message: 'Terminal access restricted by command authority. Please contact security.'
+            });
+        }
+
         // Check if user is active
-        if (decoded.status !== UserStatus.ACTIVE && decoded.status !== UserStatus.PENDING) {  // Allow pending for now or specific check? usually strictly active.
-            // For now, let's allow PENDING users to hit authenticated endpoints but maybe restrict specific actions.
-            // Actually, usually only ACTIVE users should be able to do anything useful.
+        if (decoded.status !== UserStatus.ACTIVE && decoded.status !== UserStatus.PENDING) {
             if (decoded.status !== UserStatus.ACTIVE) {
                 return res.status(403).json({ error: 'Account is not active' });
             }
@@ -41,8 +55,6 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
         return res.status(401).json({ error: 'Invalid token' });
     }
 };
-
-import prisma from '../config/db';
 
 export const authorize = (allowedRoles: string[]) => {
     return async (req: AuthRequest, res: Response, next: NextFunction) => {

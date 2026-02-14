@@ -49,3 +49,43 @@ export const changePassword = async (req: Request, res: Response) => {
         res.status(400).json({ error: error.message });
     }
 };
+export const verify2FALogin = async (req: Request, res: Response) => {
+    try {
+        const { userId, code } = req.body;
+        const result = await authService.verify2FALogin(userId, code);
+        res.status(200).json({ message: '2FA verification successful', ...result });
+    } catch (error: any) {
+        res.status(401).json({ error: error.message });
+    }
+};
+
+export const setup2FA = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.id;
+        const result = await authService.setup2FA(userId);
+        res.status(200).json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+export const activate2FA = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.id;
+        const { code } = req.body;
+        const result = await authService.activate2FA(userId, code);
+        res.status(200).json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+export const disable2FA = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.id;
+        const result = await authService.disable2FA(userId);
+        res.status(200).json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+};

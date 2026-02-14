@@ -72,5 +72,83 @@ export const initCronJobs = () => {
             console.error('[CRON] Error in Weekly Report:', error);
         }
     });
+
+    // --- WORKFLOW AUTOMATION ENGINE ADDITIONS ---
+
+    // Rule 3.2: Payroll Processed Check
+    // Runs on the 25th of every month to ensure payroll is initiated
+    cron.schedule('0 10 25 * *', async () => {
+        console.log('[CRON] Checking Monthly Payroll Status...');
+        const month = new Date().toLocaleString('default', { month: 'long' });
+        const year = new Date().getFullYear();
+
+        const payslipsCreated = await prisma.payslip.count({
+            where: { month, year }
+        });
+
+        if (payslipsCreated === 0) {
+            // CRITICAL EVENT TRIGGER: Ping Finance & Admins
+            const alertTargets = await prisma.user.findMany({
+                where: { role: { name: { in: ['ADMIN', 'FINANCE_ADMIN'] } } }
+            });
+
+            for (const target of alertTargets) {
+                await notificationService.createNotification({
+                    userId: target.id,
+                    title: '🚨 CRITICAL: Payroll Not Processed',
+                    message: `Strategic Alert: Payroll generation for ${month} ${year} has not been initiated. Deadline is approaching.`,
+                    type: NotificationType.ALERT
+                });
+            }
+        }
+    });
+
+    // Rule 3.3: Scheduled Task - Tax Investment Declarations
+    // Runs on January 1st and July 1st
+    cron.schedule('0 9 1 1,7 *', async () => {
+        console.log('[CRON] Sending Tax Declaration Reminders...');
+        const users = await prisma.user.findMany({ where: { status: 'ACTIVE' } });
+
+        for (const user of users) {
+            await notificationService.createNotification({
+                userId: user.id,
+                title: '📋 Tax Declaration Window Open',
+                message: 'The investment declaration window is now open. Please submit your proofs via the portal.',
+                type: NotificationType.INFO,
+                actionData: { action: 'tax-declaration' }
+            });
+        }
+    });
+
+    // Rule 3.4: Escalation Logic
+    // Runs every 12 hours to check for stagnant claims
+    cron.schedule('0 */12 * * *', async () => {
+        console.log('[CRON] running Claim Escalation Logic...');
+        const threshold = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours ago
+
+        const stagnantSteps = await prisma.approvalStep.findMany({
+            where: {
+                status: 'PENDING',
+                createdAt: { lt: threshold }
+            },
+            include: { approver: true }
+        });
+
+        for (const step of stagnantSteps) {
+            // PING HR for escalation
+            const hrAdmins = await prisma.user.findMany({
+                where: { role: { name: 'HR_ADMIN' } }
+            });
+
+            for (const hr of hrAdmins) {
+                await notificationService.createNotification({
+                    userId: hr.id,
+                    title: '⚡ ESCALATION: Pending Claim Stagnant',
+                    message: `Claim ${step.claimId.slice(0, 8)} has been pending with ${step.approver.name} for > 48 hours. Human intervention required.`,
+                    type: NotificationType.WARNING
+                });
+            }
+        }
+    });
 };
 

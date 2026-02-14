@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import NotificationBell from "@/components/layout/NotificationBell"
 import Navbar from "@/components/layout/Navbar"
 import PageTransition from "@/components/layout/PageTransition"
@@ -10,7 +11,7 @@ import { Zap } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { UserNav } from "@/components/layout/UserNav"
 import { SearchButton } from "@/components/layout/SearchButton"
-import { NexusChatWidget } from "@/components/ai/NexusChatWidget"
+
 
 export default async function DashboardLayout({
     children,
@@ -30,11 +31,16 @@ export default async function DashboardLayout({
             <header className="sticky top-0 z-50 w-full border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl supports-[backdrop-filter]:bg-white/40 transition-all duration-300">
                 <div className="container flex h-16 items-center px-4 md:px-8 max-w-7xl mx-auto">
                     <div className="mr-8 flex items-center">
-                        <Link href="/dashboard" className="mr-8 flex items-center gap-2 group">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 shadow-md shadow-indigo-500/30">
-                                <Zap className="h-5 w-5 text-white fill-white" />
+                        <Link href="/dashboard" className="mr-8 flex items-center gap-3 group">
+                            <div className="relative w-9 h-9 transition-transform group-hover:scale-105">
+                                <Image
+                                    src="/logo.png"
+                                    alt="Rudratic"
+                                    fill
+                                    className="object-contain"
+                                />
                             </div>
-                            <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">Rudratic</span>
+                            <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">Rudratic</span>
                         </Link>
                         {/* @ts-ignore */}
                         <Navbar role={session.user?.role} />
@@ -60,7 +66,7 @@ export default async function DashboardLayout({
                 </PageTransition>
             </main>
 
-            <NexusChatWidget token={token} />
+
         </div>
     )
 }

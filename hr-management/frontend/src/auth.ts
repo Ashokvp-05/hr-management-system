@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
+import AzureAD from "next-auth/providers/azure-ad"
 import Credentials from "next-auth/providers/credentials"
 import type { NextAuthConfig } from "next-auth"
 
@@ -12,35 +13,67 @@ export const config = {
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         }),
+        AzureAD({
+            clientId: process.env.AZURE_AD_CLIENT_ID,
+            clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+            issuer: `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/v2.0`,
+        }),
         Credentials({
             name: 'Credentials',
             credentials: {
                 email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
+                password: { label: "Password", type: "password" },
+                jwt: { label: "JWT", type: "text" },
+                userData: { label: "User Data", type: "text" }
             },
-            async authorize(credentials) {
+            async authorize(credentials: any) {
+                // Scenario 1: Direct JWT Login (Post-2FA)
+                if (credentials?.jwt && credentials?.userData) {
+                    try {
+                        const user = JSON.parse(credentials.userData as string)
+                        return {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: user.role,
+                            accessToken: credentials.jwt as string,
+                        }
+                    } catch (e) {
+                        return null
+                    }
+                }
+
+                // Scenario 2: Standard Email/Password
                 if (!credentials?.email || !credentials?.password) return null;
 
                 try {
                     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
                         method: 'POST',
-                        body: JSON.stringify(credentials),
+                        body: JSON.stringify({ email: credentials.email, password: credentials.password }),
                         headers: { "Content-Type": "application/json" }
                     });
 
                     const data = await res.json();
 
-                    if (res.ok && data.user) {
-                        return {
-                            id: data.user.user.id,
-                            name: data.user.user.name,
-                            email: data.user.user.email,
-                            role: data.user.user.role,
-                            accessToken: data.user.token,
-                        };
+                    if (res.ok) {
+                        if (data.requires2FA) {
+                            // Signal to frontend that 2FA is needed
+                            throw new Error("REQUIRES_2FA:" + JSON.stringify(data));
+                        }
+                        if (data.user) {
+                            return {
+                                id: data.user.user.id,
+                                name: data.user.user.name,
+                                email: data.user.user.email,
+                                role: data.user.user.role,
+                                accessToken: data.user.token,
+                            };
+                        }
                     }
                     return null;
-                } catch (error) {
+                } catch (error: any) {
+                    // Propagate the specific error for 2FA
+                    if (error.message.startsWith("REQUIRES_2FA:")) throw error;
                     console.error("Auth error:", error);
                     return null;
                 }
@@ -51,10 +84,10 @@ export const config = {
         signIn: '/login',
     },
     callbacks: {
-        authorized({ auth }) {
+        authorized({ auth }: { auth: any }) {
             return !!auth?.user
         },
-        async jwt({ token, user }) {
+        async jwt({ token, user }: { token: any, user: any }) {
             if (user) {
                 token.id = user.id
                 token.role = (user as any).role || 'EMPLOYEE'
@@ -62,7 +95,7 @@ export const config = {
             }
             return token
         },
-        async session({ session, token }) {
+        async session({ session, token }: { session: any, token: any }) {
             if (session.user) {
                 session.user.id = token.id as string
                 session.user.role = token.role as string

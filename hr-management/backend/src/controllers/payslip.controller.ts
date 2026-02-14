@@ -63,12 +63,96 @@ export const getMyPayslips = async (req: Request, res: Response) => {
 
 export const getAllPayslips = async (req: Request, res: Response) => {
     try {
-        const { year, month } = req.query;
+        const { year, month, status } = req.query;
         const payslips = await payslipService.getAllPayslips(
             year ? parseInt(year as string) : undefined,
-            month as string
+            month as string,
+            status as string
         );
         res.json(payslips);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+export const releasePayslip = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const payslip = await payslipService.releasePayslip(id);
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('PAYSLIP_RELEASE', adminId, id, `Released payslip for User ${payslip.userId}`);
+
+        res.json(payslip);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const generatePayslip = async (req: Request, res: Response) => {
+    try {
+        const { userId, month, year, amount } = req.body;
+
+        if (!userId || !month || !year || !amount) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const payslip = await payslipService.generatePayslipFromTemplate(
+            userId,
+            month,
+            parseInt(year),
+            parseFloat(amount)
+        );
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('PAYSLIP_GENERATE', adminId, payslip.id, `Generated template payslip for User ${userId}`);
+
+        res.status(201).json(payslip);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const bulkRelease = async (req: Request, res: Response) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: "No IDs provided" });
+        }
+
+        const result = await payslipService.bulkReleasePayslips(ids);
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('PAYSLIP_BULK_RELEASE', adminId, 'BULK', `Released ${result.count} payslips`);
+
+        res.json({ message: `Successfully released ${result.count} payslips`, count: result.count });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const deletePayslip = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        await payslipService.deletePayslip(id);
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('PAYSLIP_DELETE', adminId, id, `Deleted payslip ${id}`);
+
+        res.json({ message: "Payslip deleted successfully" });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const updatePayslip = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const payslip = await payslipService.updatePayslip(id, req.body);
+
+        const adminId = (req as any).user.id;
+        auditService.logAction('PAYSLIP_UPDATE', adminId, id, `Updated payslip ${id}`);
+
+        res.json(payslip);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

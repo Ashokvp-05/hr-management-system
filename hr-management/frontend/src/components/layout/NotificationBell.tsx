@@ -34,9 +34,11 @@ export default function NotificationBell({ token }: { token: string }) {
                 const data: Notification[] = await res.json()
                 setNotifications(data)
                 setUnreadCount(data.filter(n => !n.isRead).length)
+            } else {
+                console.warn(`Notifications fetch non-OK: ${res.status} ${res.statusText}`);
             }
         } catch (e) {
-            console.error("Failed to fetch notifications")
+            console.error("Failed to fetch notifications:", e)
         }
     }
 

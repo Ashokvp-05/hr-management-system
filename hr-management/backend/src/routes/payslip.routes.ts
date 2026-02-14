@@ -16,8 +16,13 @@ router.use(authenticate);
 router.get('/my', payslipController.getMyPayslips);
 router.get('/:id/download', payslipController.downloadPayslip);
 
-// Admin/Manager routes
-router.post('/upload', authorize(['ADMIN', 'MANAGER']), upload.single('file'), payslipController.uploadPayslip);
-router.get('/all', authorize(['ADMIN', 'MANAGER']), payslipController.getAllPayslips);
+// Admin/Finance routes
+router.post('/upload', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), upload.single('file'), payslipController.uploadPayslip);
+router.post('/generate', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), payslipController.generatePayslip);
+router.get('/all', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), payslipController.getAllPayslips);
+router.patch('/:id/release', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), payslipController.releasePayslip);
+router.patch('/bulk-release', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), payslipController.bulkRelease);
+router.patch('/:id', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), payslipController.updatePayslip);
+router.delete('/:id', authorize(['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN']), payslipController.deletePayslip);
 
 export default router;

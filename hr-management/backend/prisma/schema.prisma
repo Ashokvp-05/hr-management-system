@@ -26,6 +26,10 @@ model User {
   roleId           String?         @map("role_id")
   resetToken       String?         @map("reset_token")
   resetTokenExpiry DateTime?       @map("reset_token_expiry")
+  twoFactorEnabled Boolean         @default(false) @map("two_factor_enabled")
+  twoFactorSecret  String?         @map("two_factor_secret")
+  googleId         String?         @unique @map("google_id")
+  azureId          String?         @unique @map("azure_id")
   givenKudos       Kudos[]         @relation("GivenKudos")
   receivedKudos    Kudos[]         @relation("ReceivedKudos")
   leaveBalance     LeaveBalance?
@@ -39,6 +43,9 @@ model User {
   role             Role?           @relation(fields: [roleId], references: [id])
   wellnessChecks   WellnessCheck[]
   payslips         Payslip[]
+  expenseClaims    ExpenseClaim[]
+  salaryAdvances   SalaryAdvance[]
+  approvalSteps    ApprovalStep[]
 
   @@index([email])
   @@index([status])
@@ -329,4 +336,67 @@ model Payslip {
   @@index([userId])
   @@index([year, month])
   @@map("payslips")
+}
+
+model ExpenseClaim {
+  id          String         @id @default(uuid())
+  userId      String         @map("user_id")
+  amount      Decimal        @db.Decimal(10, 2)
+  category    String
+  description String
+  receiptUrl  String?        @map("receipt_url")
+  status      ClaimStatus    @default(PENDING)
+  currentStep Int            @default(1) @map("current_step")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvals   ApprovalStep[]
+
+  @@map("expense_claims")
+}
+
+model SalaryAdvance {
+  id             String         @id @default(uuid())
+  userId         String         @map("user_id")
+  amount         Decimal        @db.Decimal(10, 2)
+  reason         String
+  repaymentTerms String?        @map("repayment_terms")
+  status         ClaimStatus    @default(PENDING)
+  currentStep    Int            @default(1) @map("current_step")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvals      ApprovalStep[]
+
+  @@map("salary_advances")
+}
+
+model ApprovalStep {
+  id              String         @id @default(uuid())
+  claimId         String         @map("claim_id")
+  claimType       ClaimType      @map("claim_type")
+  approverId      String         @map("approver_id")
+  status          ClaimStatus    @default(PENDING)
+  comments        String?
+  stepOrder       Int            @map("step_order")
+  processedAt     DateTime?      @map("processed_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  
+  approver        User           @relation(fields: [approverId], references: [id])
+  expenseClaim    ExpenseClaim?  @relation(fields: [claimId], references: [id], onDelete: Cascade, map: "expense_claim_fk")
+  salaryAdvance   SalaryAdvance? @relation(fields: [claimId], references: [id], onDelete: Cascade, map: "salary_advance_fk")
+
+  @@map("approval_steps")
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ESCORTED
+}
+
+enum ClaimType {
+  EXPENSE
+  ADVANCE
 }

@@ -178,3 +178,17 @@
 .nextjs-toast-errors-parent {
   display: none !important;
 }
+
+/* Privacy Mode Utilities */
+.privacy-blur [data-privacy="true"] {
+  filter: blur(8px) grayscale(1);
+  pointer-events: none;
+  user-select: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.privacy-blur .privacy-blur-sensitive {
+  filter: blur(12px) grayscale(1);
+  opacity: 0.5;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

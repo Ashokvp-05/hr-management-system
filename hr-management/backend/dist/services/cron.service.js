@@ -112,5 +112,72 @@ const initCronJobs = () => {
             console.error('[CRON] Error in Weekly Report:', error);
         }
     }));
+    // --- WORKFLOW AUTOMATION ENGINE ADDITIONS ---
+    // Rule 3.2: Payroll Processed Check
+    // Runs on the 25th of every month to ensure payroll is initiated
+    node_cron_1.default.schedule('0 10 25 * *', () => __awaiter(void 0, void 0, void 0, function* () {
+        console.log('[CRON] Checking Monthly Payroll Status...');
+        const month = new Date().toLocaleString('default', { month: 'long' });
+        const year = new Date().getFullYear();
+        const payslipsCreated = yield db_1.default.payslip.count({
+            where: { month, year }
+        });
+        if (payslipsCreated === 0) {
+            // CRITICAL EVENT TRIGGER: Ping Finance & Admins
+            const alertTargets = yield db_1.default.user.findMany({
+                where: { role: { name: { in: ['ADMIN', 'FINANCE_ADMIN'] } } }
+            });
+            for (const target of alertTargets) {
+                yield notificationService.createNotification({
+                    userId: target.id,
+                    title: '🚨 CRITICAL: Payroll Not Processed',
+                    message: `Strategic Alert: Payroll generation for ${month} ${year} has not been initiated. Deadline is approaching.`,
+                    type: client_1.NotificationType.ALERT
+                });
+            }
+        }
+    }));
+    // Rule 3.3: Scheduled Task - Tax Investment Declarations
+    // Runs on January 1st and July 1st
+    node_cron_1.default.schedule('0 9 1 1,7 *', () => __awaiter(void 0, void 0, void 0, function* () {
+        console.log('[CRON] Sending Tax Declaration Reminders...');
+        const users = yield db_1.default.user.findMany({ where: { status: 'ACTIVE' } });
+        for (const user of users) {
+            yield notificationService.createNotification({
+                userId: user.id,
+                title: '📋 Tax Declaration Window Open',
+                message: 'The investment declaration window is now open. Please submit your proofs via the portal.',
+                type: client_1.NotificationType.INFO,
+                actionData: { action: 'tax-declaration' }
+            });
+        }
+    }));
+    // Rule 3.4: Escalation Logic
+    // Runs every 12 hours to check for stagnant claims
+    node_cron_1.default.schedule('0 */12 * * *', () => __awaiter(void 0, void 0, void 0, function* () {
+        console.log('[CRON] running Claim Escalation Logic...');
+        const threshold = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours ago
+        const stagnantSteps = yield db_1.default.approvalStep.findMany({
+            where: {
+                status: 'PENDING',
+                createdAt: { lt: threshold }
+            },
+            include: { approver: true }
+        });
+        for (const step of stagnantSteps) {
+            // PING HR for escalation
+            const hrAdmins = yield db_1.default.user.findMany({
+                where: { role: { name: 'HR_ADMIN' } }
+            });
+            for (const hr of hrAdmins) {
+                yield notificationService.createNotification({
+                    userId: hr.id,
+                    title: '⚡ ESCALATION: Pending Claim Stagnant',
+                    message: `Claim ${step.claimId.slice(0, 8)} has been pending with ${step.approver.name} for > 48 hours. Human intervention required.`,
+                    type: client_1.NotificationType.WARNING
+                });
+            }
+        }
+    }));
 };
 exports.initCronJobs = initCronJobs;

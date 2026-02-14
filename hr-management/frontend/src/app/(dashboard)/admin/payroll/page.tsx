@@ -14,7 +14,8 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, UploadCloud, Users, Calendar, DollarSign, FileText } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, UploadCloud, Users, Calendar, DollarSign, FileText, Zap } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 
@@ -33,6 +34,11 @@ export default function PayrollPage() {
     const [amount, setAmount] = useState("")
     const [file, setFile] = useState<File | null>(null)
     const [uploading, setUploading] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     useEffect(() => {
         const init = async () => {
@@ -112,6 +118,62 @@ export default function PayrollPage() {
         }
     }
 
+    const [generating, setGenerating] = useState(false)
+
+    const handleGenerate = async () => {
+        if (!selectedUser || !amount) {
+            toast.error("Please select an employee and enter an amount")
+            return
+        }
+
+        setGenerating(true)
+        try {
+            const token = (session?.user as any)?.accessToken
+            const res = await fetch(`${API_URL}/payslips/generate`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    userId: selectedUser,
+                    month,
+                    year,
+                    amount
+                })
+            })
+
+            if (!res.ok) throw new Error("Generation failed")
+
+            const newPayslip = await res.json()
+            setPayslips([newPayslip, ...payslips])
+            toast.success("Payslip generated from system template")
+            setAmount("")
+        } catch (error: any) {
+            toast.error(error.message || "Generation failed")
+        } finally {
+            setGenerating(false)
+        }
+    }
+
+    const handleRelease = async (id: string) => {
+        try {
+            const token = (session?.user as any)?.accessToken
+            const res = await fetch(`${API_URL}/payslips/${id}/release`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (res.ok) {
+                const updatedSlip = await res.json()
+                setPayslips(prev => prev.map(s => s.id === id ? updatedSlip : s))
+                toast.success("Payslip released to employee")
+            }
+        } catch (error) {
+            toast.error("Failed to release payslip")
+        }
+    }
+
     if (loading) return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-indigo-600" /></div>
 
     return (
@@ -184,46 +246,82 @@ export default function PayrollPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Payslip PDF</Label>
-                                <Input type="file" accept=".pdf" onChange={handleFileChange} />
+                                <Label>Payslip PDF (Optional for Template)</Label>
+                                <Input type="file" accept=".pdf" onChange={handleFileChange} className="cursor-pointer" />
                             </div>
 
-                            <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={uploading}>
-                                {uploading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                                Upload Securely
-                            </Button>
+                            <div className="pt-4 space-y-3">
+                                <Button type="submit" className="w-full bg-slate-900 border-indigo-500/30 hover:bg-slate-800 text-white font-black uppercase tracking-widest h-12 rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/10" disabled={uploading || !file}>
+                                    {uploading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4 text-indigo-400" />}
+                                    Manual Upload
+                                </Button>
+
+                                <div className="relative py-2">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100 dark:border-slate-800"></span></div>
+                                    <div className="relative flex justify-center text-[10px] uppercase font-black text-slate-400 bg-white dark:bg-slate-900 px-2 tracking-widest">or use intelligence</div>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    onClick={handleGenerate}
+                                    className="w-full bg-white dark:bg-slate-950 border-2 border-indigo-100 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 text-indigo-600 font-black uppercase tracking-widest h-12 rounded-xl transition-all active:scale-95 group"
+                                    disabled={generating}
+                                >
+                                    {generating ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Zap className="mr-2 h-4 w-4 group-hover:animate-pulse" />}
+                                    Generate & Save
+                                </Button>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
 
                 {/* List */}
-                <Card className="lg:col-span-2 border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950">
-                    <CardHeader>
-                        <CardTitle>Recent Uploads</CardTitle>
-                        <CardDescription>History of uploaded payslips.</CardDescription>
+                <Card className="lg:col-span-2 border-indigo-50/50 dark:border-indigo-900/20 shadow-2xl bg-white dark:bg-slate-950 rounded-3xl overflow-hidden">
+                    <CardHeader className="bg-slate-50/50 dark:bg-black/20 border-b border-border/50">
+                        <CardTitle className="text-xl font-black tracking-tight">Financial Stream Log</CardTitle>
+                        <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest">History of all payroll transactions</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
                             {payslips.map((slip) => (
-                                <div key={slip.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
-                                            <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                                <div key={slip.id} className="flex items-center justify-between p-6 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/5 transition-all group">
+                                    <div className="flex items-center gap-5">
+                                        <div className="h-12 w-12 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                            <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-sm text-slate-900 dark:text-white">
+                                            <p className="font-black text-slate-900 dark:text-white flex items-center gap-2">
                                                 {slip.user?.name || "Unknown User"}
+                                                {slip.fileUrl.includes('System_Generated') && (
+                                                    <Badge variant="outline" className="text-[8px] font-black uppercase border-indigo-200 text-indigo-500 bg-indigo-50">Template</Badge>
+                                                )}
                                             </p>
-                                            <p className="text-xs text-slate-500">
-                                                {slip.month} {slip.year} • ${parseFloat(slip.amount).toLocaleString()}
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mt-1">
+                                                <Calendar className="w-3 h-3" /> {slip.month} {slip.year}
+                                                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                                <DollarSign className="w-3 h-3" /> {mounted ? `$ ${parseFloat(slip.amount).toLocaleString()}` : slip.amount}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <span className={`text-xs px-2 py-1 rounded-full font-bold ${slip.status === 'GENERATED' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                                            }`}>
-                                            {slip.status}
-                                        </span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-right">
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${slip.status === 'GENERATED' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                                slip.status === 'SENT' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' :
+                                                    'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                }`}>
+                                                {slip.status}
+                                            </span>
+                                        </div>
+                                        {slip.status === 'GENERATED' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-[10px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                                onClick={() => handleRelease(slip.id)}
+                                            >
+                                                Release
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}

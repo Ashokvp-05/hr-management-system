@@ -14,9 +14,10 @@ interface AdminConsoleProps {
     overview: any;
     pendingUsers: any[];
     pendingLeaves: any[];
+    pendingPayslips: any[];
 }
 
-export function AdminConsole({ role, token, overview, pendingUsers, pendingLeaves }: AdminConsoleProps) {
+export function AdminConsole({ role, token, overview, pendingUsers, pendingLeaves, pendingPayslips }: AdminConsoleProps) {
     return (
         <Card className="premium-card shadow-2xl ring-1 ring-slate-200 dark:ring-indigo-500/10 border-0">
             <CardHeader className="bg-slate-50/50 dark:bg-black/40 border-b border-border/50 pb-0">
@@ -39,9 +40,9 @@ export function AdminConsole({ role, token, overview, pendingUsers, pendingLeave
                                     <div className="flex items-center gap-2">
                                         <CheckSquare className="w-4 h-4" />
                                         Approvals & Tasks
-                                        {(pendingUsers.length + pendingLeaves.length) > 0 && (
+                                        {(pendingUsers.length + pendingLeaves.length + pendingPayslips.length) > 0 && (
                                             <span className="bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                                                {pendingUsers.length + pendingLeaves.length}
+                                                {pendingUsers.length + pendingLeaves.length + pendingPayslips.length}
                                             </span>
                                         )}
                                     </div>
@@ -83,6 +84,7 @@ export function AdminConsole({ role, token, overview, pendingUsers, pendingLeave
                                     token={token}
                                     pendingUsers={pendingUsers}
                                     pendingLeaves={pendingLeaves}
+                                    pendingPayslips={pendingPayslips}
                                 />
                             </TabsContent>
                         )}

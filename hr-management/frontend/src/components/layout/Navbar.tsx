@@ -19,6 +19,7 @@ import { getDashboardByRole } from "@/lib/role-redirect"
 const navItems = (role?: string) => [
     { name: "Dashboard", href: getDashboardByRole(role) },
     { name: "Leave", href: "/leave" },
+    { name: "Payslips", href: "/payslip" },
     { name: "Reports", href: "/reports" },
     { name: "Profile", href: "/profile" },
 ]

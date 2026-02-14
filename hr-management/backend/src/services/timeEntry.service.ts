@@ -53,13 +53,13 @@ export const clockOut = async (userId: string) => {
     const diffInMs = now.getTime() - active.clockIn.getTime();
     const hoursWorked = diffInMs / (1000 * 60 * 60);
 
-    // Validate minimum time (prevent accidental clock-outs)
-    if (hoursWorked < 0.05) { // Less than 3 minutes
-        throw new Error('Cannot clock out within 3 minutes of clocking in');
+    // Validate minimum time (prevent accidental clock-outs but allow corrections)
+    if (hoursWorked < 0.0083) { // Less than 30 seconds
+        throw new Error('Please wait at least 30 seconds before clocking out');
     }
 
-    // Check for excessive hours (>16 hours - likely an error)
-    if (hoursWorked > 16) {
+    // Check for excessive hours (>24 hours - likely an error but possible)
+    if (hoursWorked > 24) {
         throw new Error(`Unusual work duration detected: ${hoursWorked.toFixed(2)} hours. Please contact admin.`);
     }
 

@@ -6,7 +6,7 @@ export type UserRole = "ADMIN" | "MANAGER" | "EMPLOYEE"
 
 export function useRole() {
     const { data: session, status } = useSession()
-    const role = (session?.user as any)?.role as UserRole | undefined
+    const role = (session?.user as { role?: UserRole })?.role as UserRole | undefined
 
     return {
         role,

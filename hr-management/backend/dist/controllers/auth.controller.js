@@ -42,7 +42,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePassword = exports.resetPassword = exports.forgotPassword = exports.login = exports.register = void 0;
+exports.disable2FA = exports.activate2FA = exports.setup2FA = exports.verify2FALogin = exports.changePassword = exports.resetPassword = exports.forgotPassword = exports.login = exports.register = void 0;
 const authService = __importStar(require("../services/auth.service"));
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -97,3 +97,48 @@ const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.changePassword = changePassword;
+const verify2FALogin = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId, code } = req.body;
+        const result = yield authService.verify2FALogin(userId, code);
+        res.status(200).json(Object.assign({ message: '2FA verification successful' }, result));
+    }
+    catch (error) {
+        res.status(401).json({ error: error.message });
+    }
+});
+exports.verify2FALogin = verify2FALogin;
+const setup2FA = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const result = yield authService.setup2FA(userId);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.setup2FA = setup2FA;
+const activate2FA = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const { code } = req.body;
+        const result = yield authService.activate2FA(userId, code);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.activate2FA = activate2FA;
+const disable2FA = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.id;
+        const result = yield authService.disable2FA(userId);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+exports.disable2FA = disable2FA;

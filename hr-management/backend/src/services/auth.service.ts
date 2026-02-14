@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import crypto from 'crypto';
 import * as emailService from './email.service';
+import * as tfaService from './2fa.service';
 
 const registerSchema = z.object({
     email: z.string().email(),
@@ -90,6 +91,15 @@ export const verifyCredentials = async (data: z.infer<typeof loginSchema>) => {
         // throw new Error(`Account is ${user.status}`);
     }
 
+    // Check if 2FA is enabled
+    if ((user as any).twoFactorEnabled) {
+        return {
+            requires2FA: true,
+            email: user.email,
+            id: user.id
+        };
+    }
+
     const token = jwt.sign(
         {
             id: user.id,
@@ -114,6 +124,86 @@ export const verifyCredentials = async (data: z.infer<typeof loginSchema>) => {
             status: user.status
         }
     };
+};
+
+export const verify2FALogin = async (userId: string, code: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+    });
+
+    if (!user || !(user as any).twoFactorSecret) {
+        throw new Error('2FA not configured for this user');
+    }
+
+    const isValid = tfaService.verifyToken(code, (user as any).twoFactorSecret);
+
+    if (!isValid) {
+        throw new Error('Invalid authentication code');
+    }
+
+    const token = jwt.sign(
+        {
+            id: user.id,
+            email: user.email,
+            roleId: user.roleId,
+            role: user.role?.name,
+            status: user.status
+        },
+        process.env.JWT_SECRET || 'super-secret-key',
+        { expiresIn: '1d' }
+    );
+
+    return {
+        token,
+        user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            roleId: user.roleId,
+            role: user.role?.name,
+            status: user.status
+        }
+    };
+};
+
+export const setup2FA = async (userId: string) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+
+    const { secret, otpauth } = tfaService.generateSecret(user.email);
+    const qrCode = await tfaService.generateQRCode(otpauth);
+
+    // Pre-save secret but don't enable it yet
+    await prisma.user.update({
+        where: { id: userId },
+        data: { twoFactorSecret: secret, twoFactorEnabled: false } as any
+    });
+
+    return { qrCode, secret };
+};
+
+export const activate2FA = async (userId: string, code: string) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(user as any).twoFactorSecret) throw new Error('2FA Setup not initiated');
+
+    const isValid = tfaService.verifyToken(code, (user as any).twoFactorSecret);
+    if (!isValid) throw new Error('Invalid verification code');
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: true } as any
+    });
+
+    return { message: '2FA Activated successfully' };
+};
+
+export const disable2FA = async (userId: string) => {
+    await prisma.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: false, twoFactorSecret: null } as any
+    });
+    return { message: '2FA disabled successfully' };
 };
 
 export const requestPasswordReset = async (email: string) => {

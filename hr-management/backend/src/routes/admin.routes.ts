@@ -18,5 +18,13 @@ router.post('/sync/sheets', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_
 router.put('/users/:id/approve', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.approveUser);
 router.put('/users/:id/reject', authorize(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.rejectUser);
 
+// Settings & Config
+router.get('/settings', authorize(['ADMIN', 'SUPER_ADMIN']), adminController.getSettings);
+router.patch('/settings', authorize(['ADMIN', 'SUPER_ADMIN']), adminController.updateSettings);
+
+// Advanced User Control
+router.patch('/users/:id/status', authorize(['ADMIN', 'SUPER_ADMIN']), adminController.toggleUserStatus);
+router.patch('/users/:id/reset-password', authorize(['ADMIN', 'SUPER_ADMIN']), adminController.resetUserPassword);
+router.delete('/users/:id', authorize(['ADMIN', 'SUPER_ADMIN']), adminController.deleteUser);
 
 export default router;

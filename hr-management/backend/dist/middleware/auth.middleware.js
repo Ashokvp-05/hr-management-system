@@ -15,8 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
+const db_1 = __importDefault(require("../config/db"));
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
-const authenticate = (req, res, next) => {
+const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         return res.status(401).json({ error: 'No token provided' });
@@ -25,10 +26,20 @@ const authenticate = (req, res, next) => {
     try {
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
         req.user = decoded;
+        // --- LOCKDOWN CHECK ---
+        const lockdownConfig = yield db_1.default.systemConfig.findUnique({
+            where: { key: 'lockdownMode' }
+        });
+        const isLockdown = (lockdownConfig === null || lockdownConfig === void 0 ? void 0 : lockdownConfig.value) === true;
+        const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(decoded.role || '');
+        if (isLockdown && !isAdmin) {
+            return res.status(503).json({
+                error: 'System In Lockdown',
+                message: 'Terminal access restricted by command authority. Please contact security.'
+            });
+        }
         // Check if user is active
-        if (decoded.status !== client_1.UserStatus.ACTIVE && decoded.status !== client_1.UserStatus.PENDING) { // Allow pending for now or specific check? usually strictly active.
-            // For now, let's allow PENDING users to hit authenticated endpoints but maybe restrict specific actions.
-            // Actually, usually only ACTIVE users should be able to do anything useful.
+        if (decoded.status !== client_1.UserStatus.ACTIVE && decoded.status !== client_1.UserStatus.PENDING) {
             if (decoded.status !== client_1.UserStatus.ACTIVE) {
                 return res.status(403).json({ error: 'Account is not active' });
             }
@@ -38,9 +49,8 @@ const authenticate = (req, res, next) => {
     catch (error) {
         return res.status(401).json({ error: 'Invalid token' });
     }
-};
+});
 exports.authenticate = authenticate;
-const db_1 = __importDefault(require("../config/db"));
 const authorize = (allowedRoles) => {
     return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
         if (!req.user || !req.user.roleId) {

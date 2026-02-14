@@ -1,11 +1,34 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Loader2, Save, User, Smartphone, Mail, Hash, Briefcase, Lock, KeyRound, LogOut, Clock } from "lucide-react"
+import {
+    Loader2,
+    Save,
+    User,
+    Smartphone,
+    Mail,
+    Hash,
+    Briefcase,
+    Lock,
+    KeyRound,
+    LogOut,
+    Clock,
+    ShieldCheck,
+    Calendar,
+    ArrowUpRight,
+    CircleUser,
+    Eye,
+    EyeOff,
+    CheckCircle2,
+    Database,
+    Binary,
+    Fingerprint,
+    Activity
+} from "lucide-react"
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -13,6 +36,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
     Dialog,
     DialogContent,
@@ -32,8 +56,7 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { toast } from "sonner"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
+import { API_BASE_URL } from "@/lib/config"
 
 const profileSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
@@ -54,11 +77,12 @@ const passwordSchema = z.object({
 export default function ProfilePage() {
     const { data: session, update } = useSession()
     const [loading, setLoading] = useState(false)
+    const [fetchLoading, setFetchLoading] = useState(true)
     const [passwordLoading, setPasswordLoading] = useState(false)
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
     const [mount, setMount] = useState(false)
 
-    // Profile data state
     const [userData, setUserData] = useState<any>(null)
 
     const form = useForm<z.infer<typeof profileSchema>>({
@@ -86,7 +110,7 @@ export default function ProfilePage() {
             const token = (session?.user as any)?.accessToken
             if (!token) return
             try {
-                const res = await fetch(`${API_URL}/profile`, {
+                const res = await fetch(`${API_BASE_URL}/profile`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 if (res.ok) {
@@ -101,6 +125,8 @@ export default function ProfilePage() {
                 }
             } catch (e) {
                 console.error("Failed to load profile", e)
+            } finally {
+                setFetchLoading(false)
             }
         }
         fetchProfile()
@@ -110,7 +136,7 @@ export default function ProfilePage() {
         setLoading(true)
         try {
             const token = (session?.user as any)?.accessToken
-            const res = await fetch(`${API_URL}/profile`, {
+            const res = await fetch(`${API_BASE_URL}/profile`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -124,7 +150,6 @@ export default function ProfilePage() {
             const updatedUser = await res.json()
             setUserData(updatedUser)
 
-            // Update next-auth session
             await update({
                 ...session,
                 user: {
@@ -134,9 +159,9 @@ export default function ProfilePage() {
                 }
             })
 
-            toast.success("Profile Updated")
+            toast.success("Identity profile synchronized")
         } catch (error) {
-            toast.error("Failed to update profile")
+            toast.error("Cloud synchronization failed")
         } finally {
             setLoading(false)
         }
@@ -146,7 +171,7 @@ export default function ProfilePage() {
         setPasswordLoading(true)
         try {
             const token = (session?.user as any)?.accessToken
-            const res = await fetch(`${API_URL}/auth/change-password`, {
+            const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -159,13 +184,13 @@ export default function ProfilePage() {
             })
 
             const result = await res.json()
-            if (!res.ok) throw new Error(result.error || "Failed to update password")
+            if (!res.ok) throw new Error(result.error || "Security breach prevention active")
 
-            toast.success("Password Updated")
+            toast.success("Security credentials updated")
             setIsPasswordModalOpen(false)
             passwordForm.reset()
         } catch (error: any) {
-            toast.error(error.message || "Failed to change password.")
+            toast.error(error.message || "Credential update rejected.")
         } finally {
             setPasswordLoading(false)
         }
@@ -178,239 +203,260 @@ export default function ProfilePage() {
     const joinedDate = userData?.joiningDate ? format(new Date(userData.joiningDate), "MMM yyyy") : "Jan 2026"
 
     return (
-        <div className="container mx-auto py-10 max-w-4xl space-y-8">
-            <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24 border-4 border-background shadow-lg items-center justify-center bg-slate-100 dark:bg-slate-800">
-                    <AvatarFallback className="text-4xl font-bold text-slate-500">{initial}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <h1 className="text-3xl font-bold">{userData?.name}</h1>
-                    <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className="text-emerald-600 bg-emerald-50 border-emerald-200">
-                            Full-Time Employee
-                        </Badge>
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                            <Briefcase className="w-3 h-3" /> {userData?.workMode || "Hybrid"}
-                        </Badge>
+        <div className="flex-1 min-h-screen bg-slate-50/50 dark:bg-slate-950/50 p-6 lg:p-8 animate-in fade-in duration-500 overflow-y-auto">
+            <div className="max-w-[1240px] h-full mx-auto space-y-6">
+
+                {/* COMPACT PREMIUM PROFILE HEADER */}
+                <div className="relative flex items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-6">
+                        <div className="relative">
+                            <Avatar className="h-20 w-20 border-[4px] border-white dark:border-slate-900 shadow-xl items-center justify-center bg-slate-100 dark:bg-slate-800">
+                                <AvatarFallback className="text-3xl font-black text-slate-300 dark:text-slate-600 font-mono">
+                                    {fetchLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : initial}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute -bottom-1 -right-1 p-1.5 bg-indigo-600 text-white rounded-lg shadow-md">
+                                <ShieldCheck className="w-3 h-3" />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase tracking-widest leading-none">{userData?.name || <Skeleton className="h-6 w-48" />}</h1>
+                                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none px-2.5 py-0.5 font-black uppercase tracking-[0.1em] text-[9px]">
+                                    Verified
+                                </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                <span className="flex items-center gap-1.5"><Briefcase className="w-3 h-3 text-indigo-500" /> {roleName}</span>
+                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3 text-indigo-500" /> Joined {joinedDate}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-sm">
+                        <Fingerprint className="w-4 h-4 text-indigo-500" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hash 0x{userData?.id?.slice(-8) || "88C22BFA"}</span>
                     </div>
                 </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* SINGLE VIEW ADAPTIVE GRID */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-                {/* Left Col: Details Form */}
-                <div className="md:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Personal Information</CardTitle>
-                            <CardDescription>Update your contact details and preferences.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                                    <FormField
-                                        control={form.control}
-                                        name="name"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Full Name</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                        <Input className="pl-9" {...field} />
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <FormField
-                                            control={form.control}
-                                            name="email"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Work Email</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                            <Input className="pl-9" {...field} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="phone"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Phone Number</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <Smartphone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                            <Input className="pl-9" placeholder="+1 234 567 890" {...field} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                    {/* LEFT CONTENT: IDENTITY FORM (MORE COMPACT) */}
+                    <div className="lg:col-span-8">
+                        <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                            <CardHeader className="bg-slate-50/30 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800/50 py-5 px-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-indigo-600/10 text-indigo-600 rounded-lg">
+                                            <CircleUser className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Identity Ledger</CardTitle>
+                                            <CardDescription className="text-[10px] font-medium">Secure personnel coordinates and access levels.</CardDescription>
+                                        </div>
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Live Sync</span>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-6">
+                                <Form {...form}>
+                                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                                            <FormField
+                                                control={form.control}
+                                                name="name"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1.5">
+                                                        <FormLabel className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Legal Designation</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative group">
+                                                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                                <Input className="h-10 pl-9 border-slate-200 dark:border-slate-800 rounded-xl font-bold bg-slate-50/50 dark:bg-slate-800/20 text-sm focus:ring-0 focus:border-indigo-500 transition-all" {...field} />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage className="text-[9px] uppercase font-black tracking-widest" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="email"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1.5">
+                                                        <FormLabel className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Digital Coordinate</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative group">
+                                                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                                <Input className="h-10 pl-9 border-slate-200 dark:border-slate-800 rounded-xl font-bold bg-slate-50/50 dark:bg-slate-800/20 text-sm focus:ring-0 focus:border-indigo-500 transition-all" {...field} />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage className="text-[9px] uppercase font-black tracking-widest" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="phone"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1.5">
+                                                        <FormLabel className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Voice Link</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative group">
+                                                                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                                <Input className="h-10 pl-9 border-slate-200 dark:border-slate-800 rounded-xl font-bold bg-slate-50/50 dark:bg-slate-800/20 text-sm focus:ring-0 focus:border-indigo-500 transition-all" placeholder="+1 000 000 000" {...field} />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage className="text-[9px] uppercase font-black tracking-widest" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="discordId"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1.5">
+                                                        <FormLabel className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Grid ID (Discord)</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative group">
+                                                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                                <Input className="h-10 pl-9 border-slate-200 dark:border-slate-800 rounded-xl font-bold bg-slate-50/50 dark:bg-slate-800/20 text-sm focus:ring-0 focus:border-indigo-500 transition-all" placeholder="user#0000" {...field} />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage className="text-[9px] uppercase font-black tracking-widest" />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
 
-                                    <FormField
-                                        control={form.control}
-                                        name="discordId"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Discord ID</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <Hash className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                        <Input className="pl-9" placeholder="username#1234" {...field} />
-                                                    </div>
-                                                </FormControl>
-                                                <FormDescription>Used for team notifications.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                        <div className="flex justify-end pt-2">
+                                            <Button type="submit" disabled={loading} className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+                                                {loading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Save className="w-3 h-3 mr-2" />}
+                                                Sync Changes
+                                            </Button>
+                                        </div>
+                                    </form>
+                                </Form>
+                            </CardContent>
+                        </Card>
+                    </div>
 
-                                    <Button type="submit" disabled={loading}>
-                                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        <Save className="mr-2 h-4 w-4" /> Save Changes
-                                    </Button>
-                                </form>
-                            </Form>
-                        </CardContent>
-                    </Card>
+                    {/* RIGHT CONTENT: SECURITY & DNA (COMPACT) */}
+                    <div className="lg:col-span-4 space-y-6">
+
+                        {/* TRUST & ACCESS */}
+                        <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
+                            <CardHeader className="py-4 px-6 border-b border-slate-100 dark:border-slate-800">
+                                <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                    <ShieldCheck className="w-3 h-3 text-emerald-500" /> Trust Center
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-2">
+                                <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" className="w-full h-10 justify-between border-slate-200 dark:border-slate-800 rounded-xl font-bold bg-slate-50/30 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-none text-xs">
+                                            <div className="flex items-center gap-2 italic">
+                                                <Lock className="w-3.5 h-3.5 text-indigo-500" /> Reset Password
+                                            </div>
+                                            <ArrowUpRight className="w-3 h-3 text-slate-300" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-[400px] border-none shadow-2xl rounded-3xl p-0 overflow-hidden">
+                                        <div className="bg-indigo-600 p-6 text-white text-center">
+                                            <h3 className="text-xl font-black uppercase tracking-tight">Password Reset</h3>
+                                            <p className="text-[10px] text-indigo-100 font-bold opacity-80 uppercase tracking-widest mt-1">Personnel Authentication Required</p>
+                                        </div>
+                                        <Form {...passwordForm}>
+                                            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="p-6 space-y-5">
+                                                <FormField
+                                                    control={passwordForm.control}
+                                                    name="currentPassword"
+                                                    render={({ field }) => (
+                                                        <FormItem className="space-y-1">
+                                                            <FormLabel className="text-[9px] font-black text-slate-400 uppercase">Existing Key</FormLabel>
+                                                            <FormControl>
+                                                                <Input type={showPassword ? "text" : "password"} className="h-10 border-slate-200 rounded-xl bg-slate-50 font-bold" {...field} />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <div className="space-y-4">
+                                                    <FormField
+                                                        control={passwordForm.control}
+                                                        name="newPassword"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[9px] font-black text-slate-400 uppercase">New Generation</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type={showPassword ? "text" : "password"} className="h-10 border-slate-200 rounded-xl bg-slate-50 font-bold" {...field} />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between pt-1">
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => setShowPassword(!showPassword)} className="text-[9px] font-black uppercase text-slate-400">
+                                                        {showPassword ? "Obfuscate" : "Reveal Keys"}
+                                                    </Button>
+                                                </div>
+                                                <Button type="submit" disabled={passwordLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl shadow-xl shadow-indigo-500/30">
+                                                    {passwordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Reset"}
+                                                </Button>
+                                            </form>
+                                        </Form>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button variant="ghost" className="w-full h-10 justify-center text-[9px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-all" onClick={() => signOut()}>
+                                    Terminate Session
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* SYSTEM DNA */}
+                        <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-slate-900">
+                            <CardHeader className="py-4 px-6 border-b border-slate-100 dark:border-slate-800/50">
+                                <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                    <Database className="w-3 h-3 text-indigo-500" /> System DNA
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-3">
+                                {[
+                                    { label: "Designation", value: roleName, icon: Activity },
+                                    { label: "Operation", value: userData?.workMode || "Hybrid", icon: Clock }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/50 transition-all hover:border-indigo-100 dark:hover:border-indigo-900/30">
+                                        <div className="flex items-center gap-2">
+                                            <item.icon className="w-3 h-3 text-slate-400" />
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{item.label}</span>
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                                            {fetchLoading ? <Skeleton className="h-3 w-16" /> : item.value}
+                                        </span>
+                                    </div>
+                                ))}
+                                <div className="p-2.5 rounded-xl bg-indigo-50/30 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-900/20 flex items-center justify-between overflow-hidden relative">
+                                    <div className="space-y-1 relative z-10">
+                                        <p className="text-[9px] font-black text-indigo-400 dark:text-indigo-400 uppercase tracking-widest uppercase">Signal Status</p>
+                                        <p className="text-sm font-black text-indigo-600 dark:text-indigo-300">ENCRYPTED</p>
+                                    </div>
+                                    <Binary className="w-8 h-8 text-indigo-500/10 absolute -right-1 -bottom-1 rotate-12" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
-                {/* Right Col: Security & Access */}
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Security</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-start">
-                                        <Lock className="mr-2 h-4 w-4" /> Change Password
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-[425px]">
-                                    <DialogHeader>
-                                        <DialogTitle>Change Password</DialogTitle>
-                                        <DialogDescription>
-                                            Enter your current password and a new one to update your security.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <Form {...passwordForm}>
-                                        <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4 py-4">
-                                            <FormField
-                                                control={passwordForm.control}
-                                                name="currentPassword"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Current Password</FormLabel>
-                                                        <FormControl>
-                                                            <div className="relative">
-                                                                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                                <Input type="password" placeholder="••••••••" className="pl-9" {...field} />
-                                                            </div>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={passwordForm.control}
-                                                name="newPassword"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>New Password</FormLabel>
-                                                        <FormControl>
-                                                            <div className="relative">
-                                                                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                                <Input type="password" placeholder="••••••••" className="pl-9" {...field} />
-                                                            </div>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={passwordForm.control}
-                                                name="confirmPassword"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Confirm New Password</FormLabel>
-                                                        <FormControl>
-                                                            <div className="relative">
-                                                                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                                <Input type="password" placeholder="••••••••" className="pl-9" {...field} />
-                                                            </div>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <DialogFooter className="pt-4">
-                                                <Button type="submit" disabled={passwordLoading} className="w-full sm:w-auto">
-                                                    {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                    Update Password
-                                                </Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </Form>
-                                </DialogContent>
-                            </Dialog>
-                            <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => signOut()}>
-                                <LogOut className="mr-2 h-4 w-4" /> Log Out All Devices
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Role & Access</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Role</span>
-                                    <span className="font-medium text-purple-600">
-                                        {roleName}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Work Mode</span>
-                                    <span className="font-medium">Hybrid</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Joined</span>
-                                    <span className="font-medium">{joinedDate}</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-slate-50 dark:bg-slate-900 border-none">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-2xl font-bold">0h</p>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Clock className="w-3 h-3" /> Hours this week
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* MINI AUDIT FOOTER */}
+                <div className="flex flex-col md:flex-row items-center justify-between pt-4 opacity-20 hover:opacity-100 transition-opacity grayscale border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <Fingerprint className="w-3 h-3 text-slate-400" />
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.8em]">Personnel Node Identity</p>
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic mt-2 md:mt-0">Protocol Stability v.6.0.0-Compact</p>
                 </div>
             </div>
         </div>

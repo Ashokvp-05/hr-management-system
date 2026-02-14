@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress" // Assuming I'll need to create this or use simple divs
 
+import { API_BASE_URL } from "@/lib/config"
+
 interface Balance {
     sick: number
     casual: number
@@ -16,8 +18,7 @@ export default function LeaveBalance({ token, refreshTrigger = 0 }: { token: str
     useEffect(() => {
         const fetchBalance = async () => {
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
-                const res = await fetch(`${apiUrl}/leaves/balance`, {
+                const res = await fetch(`${API_BASE_URL}/leaves/balance`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 if (res.ok) setBalance(await res.json())

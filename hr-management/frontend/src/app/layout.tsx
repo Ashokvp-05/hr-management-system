@@ -33,6 +33,10 @@ export const metadata: Metadata = {
     default: "Rudratic Technologies HR Management System"
   },
   description: "Enterprise-grade HR Platform by Rudratic Technologies",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default async function RootLayout({

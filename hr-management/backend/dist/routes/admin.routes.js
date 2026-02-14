@@ -49,4 +49,11 @@ router.get('/audit-logs', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMI
 router.post('/sync/sheets', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.syncToSheets);
 router.put('/users/:id/approve', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.approveUser);
 router.put('/users/:id/reject', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN', 'HR_ADMIN', 'OPS_ADMIN']), adminController.rejectUser);
+// Settings & Config
+router.get('/settings', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN']), adminController.getSettings);
+router.patch('/settings', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN']), adminController.updateSettings);
+// Advanced User Control
+router.patch('/users/:id/status', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN']), adminController.toggleUserStatus);
+router.patch('/users/:id/reset-password', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN']), adminController.resetUserPassword);
+router.delete('/users/:id', (0, auth_middleware_1.authorize)(['ADMIN', 'SUPER_ADMIN']), adminController.deleteUser);
 exports.default = router;
